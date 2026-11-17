@@ -1,0 +1,171 @@
+{
+ "ok": true,
+ "data_date": "2026-11-17",
+ "prev_date": "2026-11-16",
+ "market_trade_date": "2026-11-17",
+ "is_latest": true,
+ "stats": {
+  "total": 172,
+  "up": 26,
+  "down": 142,
+  "flat": 4
+ },
+ "themes": [
+  {
+   "code": "gn_hwhs",
+   "name": "华为海思",
+   "pct": 0.78,
+   "delta": 2.39,
+   "prev_pct": -1.61,
+   "stock_count": 36,
+   "amount": 29287324914.0,
+   "lead_name": "慧博云通",
+   "lead_pct": 2.5,
+   "desc": "与华为海思在芯片、模组或供应链上有合作关系的公司。",
+   "stocks": [
+    {
+     "code": "301316",
+     "name": "慧博云通",
+     "pct": 8.33
+    },
+    {
+     "code": "000062",
+     "name": "深圳华强",
+     "pct": 6.71
+    },
+    {
+     "code": "002371",
+     "name": "北方华创",
+     "pct": 4.09
+    }
+   ],
+   "news": null
+  },
+  {
+   "code": "gn_jaz",
+   "name": "聚氨酯",
+   "pct": 0.28,
+   "delta": 0.56,
+   "prev_pct": -0.28,
+   "stock_count": 25,
+   "amount": 6540572176.0,
+   "lead_name": "北化股份",
+   "lead_pct": 1.45,
+   "desc": "聚氨酯原料（MDI、TDI 等）生产与应用相关公司。",
+   "stocks": [
+    {
+     "code": "002246",
+     "name": "北化股份",
+     "pct": 7.65
+    },
+    {
+     "code": "002409",
+     "name": "雅克科技",
+     "pct": 5.59
+    },
+    {
+     "code": "600096",
+     "name": "云天化",
+     "pct": 2.65
+    }
+   ],
+   "news": null
+  },
+  {
+   "code": "gn_hjgn",
+   "name": "黄金概念",
+   "pct": 0.23,
+   "delta": 0.48,
+   "prev_pct": -0.25,
+   "stock_count": 27,
+   "amount": 15008739420.0,
+   "lead_name": "盛屯矿业",
+   "lead_pct": 0.44,
+   "desc": "黄金采选、冶炼与销售相关公司。",
+   "stocks": [
+    {
+     "code": "600711",
+     "name": "盛屯矿业",
+     "pct": 5.89
+    },
+    {
+     "code": "000975",
+     "name": "山金国际",
+     "pct": 3.4
+    },
+    {
+     "code": "600988",
+     "name": "赤峰黄金",
+     "pct": 3.29
+    }
+   ],
+   "news": {
+    "title": "【全球资管巨头：黄金年底或将大幅上涨】近期，金价跌至年内低点，多空分歧加剧。资管巨头施罗德认为，黄金会很快站稳脚跟，并有可能在年底前出现大幅上涨。高盛则预计，美联储持续收紧政策将压制无息资产，黄金短期会进一步走弱、波动率抬升。据加拿大Kit",
+    "time": "2026-11-17 15:20:47",
+    "url": "https://finance.sina.cn/7x24/2026-11-17/detail-iniyzswf2139673.d.html"
+   }
+  },
+  {
+   "code": "gn_scp",
+   "name": "奢侈品",
+   "pct": 0.21,
+   "delta": -0.94,
+   "prev_pct": 1.15,
+   "stock_count": 16,
+   "amount": 8971456727.0,
+   "lead_name": "ST美克",
+   "lead_pct": 0.07,
+   "desc": "高端消费与奢侈品牌代理、销售相关的公司。",
+   "stocks": [
+    {
+     "code": "600337",
+     "name": "ST美克",
+     "pct": 1.92
+    },
+    {
+     "code": "600612",
+     "name": "老凤祥",
+     "pct": 1.05
+    },
+    {
+     "code": "002345",
+     "name": "潮宏基",
+     "pct": 0.96
+    }
+   ],
+   "news": null
+  },
+  {
+   "code": "gn_CROgn",
+   "name": "CRO概念",
+   "pct": 0.14,
+   "delta": 1.12,
+   "prev_pct": -0.98,
+   "stock_count": 19,
+   "amount": 10047129348.0,
+   "lead_name": "凯莱英",
+   "lead_pct": 3.3,
+   "desc": "题材分类，包含 19 只股票。",
+   "stocks": [
+    {
+     "code": "002821",
+     "name": "凯莱英",
+     "pct": 2.3
+    },
+    {
+     "code": "300347",
+     "name": "泰格医药",
+     "pct": 1.79
+    },
+    {
+     "code": "688131",
+     "name": "皓元医药",
+     "pct": 1.45
+    }
+   ],
+   "news": null
+  }
+ ],
+ "note": null,
+ "generated_at": "2026-11-17 15:59:38"
+}
