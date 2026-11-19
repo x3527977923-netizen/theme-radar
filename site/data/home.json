@@ -1,171 +1,171 @@
 {
  "ok": true,
- "data_date": "2026-11-18",
- "prev_date": "2026-11-17",
- "market_trade_date": "2026-11-18",
+ "data_date": "2026-11-17",
+ "prev_date": "2026-11-16",
+ "market_trade_date": "2026-11-17",
  "is_latest": true,
  "stats": {
   "total": 172,
-  "up": 32,
-  "down": 136,
+  "up": 26,
+  "down": 142,
   "flat": 4
  },
  "themes": [
   {
-   "code": "gn_hwgn",
-   "name": "华为概念",
-   "pct": 0.87,
-   "delta": 1.22,
-   "prev_pct": -0.35,
-   "stock_count": 52,
-   "amount": 55019696722.0,
-   "lead_name": "武汉凡谷",
-   "lead_pct": 0.85,
-   "desc": "题材分类，包含 52 只股票。",
-   "stocks": [
-    {
-     "code": "002194",
-     "name": "武汉凡谷",
-     "pct": 10.05
-    },
-    {
-     "code": "002916",
-     "name": "深南电路",
-     "pct": 10.0
-    },
-    {
-     "code": "000988",
-     "name": "华工科技",
-     "pct": 8.93
-    }
-   ],
-   "news": {
-    "title": "【华为与中国人保签署战略合作协议】今天，中国人民保险集团股份有限公司（以下简称“中国人保”）与华为技术有限公司（以下简称“华为”）在深圳签署战略合作协议。中国人保集团党委书记、董事长谭炯与华为副董事长、轮值董事长汪涛出席并见证签约。中国人保",
-    "time": "2026-11-18 22:53:54",
-    "url": "https://finance.sina.cn/7x24/2026-11-18/detail-inizensv4745507.d.html"
-   }
-  },
-  {
-   "code": "gn_kdts",
-   "name": "宽带提速",
-   "pct": 0.59,
-   "delta": 0.98,
-   "prev_pct": -0.39,
-   "stock_count": 18,
-   "amount": 16206244136.0,
-   "lead_name": "武汉凡谷",
-   "lead_pct": 0.85,
-   "desc": "题材分类，包含 18 只股票。",
-   "stocks": [
-    {
-     "code": "002194",
-     "name": "武汉凡谷",
-     "pct": 10.05
-    },
-    {
-     "code": "000070",
-     "name": "特发信息",
-     "pct": 6.44
-    },
-    {
-     "code": "002396",
-     "name": "星网锐捷",
-     "pct": 4.29
-    }
-   ],
-   "news": null
-  },
-  {
    "code": "gn_hwhs",
    "name": "华为海思",
-   "pct": 0.43,
-   "delta": -0.35,
-   "prev_pct": 0.78,
+   "pct": 0.78,
+   "delta": 2.39,
+   "prev_pct": -1.61,
    "stock_count": 36,
-   "amount": 27393269235.0,
-   "lead_name": "兴森科技",
-   "lead_pct": 1.97,
+   "amount": 29287324914.0,
+   "lead_name": "慧博云通",
+   "lead_pct": 2.5,
    "desc": "与华为海思在芯片、模组或供应链上有合作关系的公司。",
    "stocks": [
     {
-     "code": "002436",
-     "name": "兴森科技",
-     "pct": 8.13
+     "code": "301316",
+     "name": "慧博云通",
+     "pct": 8.33
     },
     {
-     "code": "300339",
-     "name": "润和软件",
-     "pct": 4.57
+     "code": "000062",
+     "name": "深圳华强",
+     "pct": 6.71
     },
     {
-     "code": "688037",
-     "name": "芯源微",
-     "pct": 3.96
+     "code": "002371",
+     "name": "北方华创",
+     "pct": 4.09
     }
    ],
    "news": null
   },
   {
-   "code": "gn_qcdz",
-   "name": "汽车电子",
-   "pct": 0.42,
-   "delta": 0.79,
-   "prev_pct": -0.37,
-   "stock_count": 31,
-   "amount": 22642072732.0,
-   "lead_name": "行云科技",
-   "lead_pct": 3.27,
-   "desc": "题材分类，包含 31 只股票。",
+   "code": "gn_jaz",
+   "name": "聚氨酯",
+   "pct": 0.28,
+   "delta": 0.56,
+   "prev_pct": -0.28,
+   "stock_count": 25,
+   "amount": 6540572176.0,
+   "lead_name": "北化股份",
+   "lead_pct": 1.45,
+   "desc": "聚氨酯原料（MDI、TDI 等）生产与应用相关公司。",
    "stocks": [
     {
-     "code": "300209",
-     "name": "行云科技",
-     "pct": 17.32
+     "code": "002246",
+     "name": "北化股份",
+     "pct": 7.65
     },
     {
-     "code": "002463",
-     "name": "沪电股份",
-     "pct": 10.0
+     "code": "002409",
+     "name": "雅克科技",
+     "pct": 5.59
     },
     {
-     "code": "000988",
-     "name": "华工科技",
-     "pct": 8.93
+     "code": "600096",
+     "name": "云天化",
+     "pct": 2.65
     }
    ],
    "news": null
   },
   {
-   "code": "gn_gxbj",
-   "name": "高校背景",
-   "pct": 0.33,
-   "delta": 0.5,
-   "prev_pct": -0.17,
-   "stock_count": 22,
-   "amount": 11022009196.0,
-   "lead_name": "华工科技",
-   "lead_pct": 5.46,
-   "desc": "题材分类，包含 22 只股票。",
+   "code": "gn_hjgn",
+   "name": "黄金概念",
+   "pct": 0.23,
+   "delta": 0.48,
+   "prev_pct": -0.25,
+   "stock_count": 27,
+   "amount": 15008739420.0,
+   "lead_name": "盛屯矿业",
+   "lead_pct": 0.44,
+   "desc": "黄金采选、冶炼与销售相关公司。",
    "stocks": [
     {
-     "code": "000988",
-     "name": "华工科技",
-     "pct": 8.93
+     "code": "600711",
+     "name": "盛屯矿业",
+     "pct": 5.89
     },
     {
-     "code": "600530",
-     "name": "ST交昂",
-     "pct": 8.64
+     "code": "000975",
+     "name": "山金国际",
+     "pct": 3.4
     },
     {
-     "code": "600730",
-     "name": "*ST高科",
-     "pct": 5.68
+     "code": "600988",
+     "name": "赤峰黄金",
+     "pct": 3.29
+    }
+   ],
+   "news": {
+    "title": "【全球资管巨头：黄金年底或将大幅上涨】近期，金价跌至年内低点，多空分歧加剧。资管巨头施罗德认为，黄金会很快站稳脚跟，并有可能在年底前出现大幅上涨。高盛则预计，美联储持续收紧政策将压制无息资产，黄金短期会进一步走弱、波动率抬升。据加拿大Kit",
+    "time": "2026-11-17 15:20:47",
+    "url": "https://finance.sina.cn/7x24/2026-11-17/detail-iniyzswf2139673.d.html"
+   }
+  },
+  {
+   "code": "gn_scp",
+   "name": "奢侈品",
+   "pct": 0.21,
+   "delta": -0.94,
+   "prev_pct": 1.15,
+   "stock_count": 16,
+   "amount": 8971456727.0,
+   "lead_name": "ST美克",
+   "lead_pct": 0.07,
+   "desc": "高端消费与奢侈品牌代理、销售相关的公司。",
+   "stocks": [
+    {
+     "code": "600337",
+     "name": "ST美克",
+     "pct": 1.92
+    },
+    {
+     "code": "600612",
+     "name": "老凤祥",
+     "pct": 1.05
+    },
+    {
+     "code": "002345",
+     "name": "潮宏基",
+     "pct": 0.96
+    }
+   ],
+   "news": null
+  },
+  {
+   "code": "gn_CROgn",
+   "name": "CRO概念",
+   "pct": 0.14,
+   "delta": 1.12,
+   "prev_pct": -0.98,
+   "stock_count": 19,
+   "amount": 10047129348.0,
+   "lead_name": "凯莱英",
+   "lead_pct": 3.3,
+   "desc": "题材分类，包含 19 只股票。",
+   "stocks": [
+    {
+     "code": "002821",
+     "name": "凯莱英",
+     "pct": 2.3
+    },
+    {
+     "code": "300347",
+     "name": "泰格医药",
+     "pct": 1.79
+    },
+    {
+     "code": "688131",
+     "name": "皓元医药",
+     "pct": 1.45
     }
    ],
    "news": null
   }
  ],
  "note": null,
- "generated_at": "2026-11-18 16:27:49"
+ "generated_at": "2026-11-17 15:59:38"
 }

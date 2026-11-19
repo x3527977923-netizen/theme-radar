@@ -234,6 +234,15 @@ def main():
     trade_date = market_trade_date()
     print("交易日:", trade_date)
 
+    # 幂等：当天收盘数据已抓过就跳过，避免多次 cron 产生重复提交
+    force = '--force' in sys.argv
+    existing = load_daily(trade_date)
+    if (not force) and existing and len((existing.get("rows") or {})) >= 150:
+        print("当天数据已存在（%d 个题材），跳过。需要重抓请加 --force" % len(existing.get("rows") or {}))
+        # 仍然刷新首页/矩阵（成本很低），保证 generated_at 更新
+        if os.path.isfile(os.path.join(DATA, "home.json")):
+            return 0
+
     sectors = fetch_sectors()
     if not sectors:
         print("ERROR: 题材数据为空，放弃本次生成（保留上次数据）")
