@@ -153,10 +153,22 @@ def sector_stocks(code, num=20):
         return []
     out = []
     for x in arr:
+        nm = x.get("name") or ""
+        # 过滤退市股、停牌无价股，避免把噪音当成「涨幅靠前」
+        if "退市" in nm:
+            continue
+        try:
+            price = float(x.get("trade"))
+        except Exception:
+            continue
+        if not price or price <= 0:
+            continue
         try:
             pct = round(float(x.get("changepercent")), 2)
         except Exception:
             pct = None
+        if pct is None:
+            continue
         out.append({
             "code": str(x.get("code", "")).replace("sh", "").replace("sz", ""),
             "name": x.get("name"),
