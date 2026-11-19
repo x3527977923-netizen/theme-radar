@@ -1,0 +1,244 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>题材雷达 · 控制台</title>
+<style>
+  :root{
+    --bg:#0b0b0c;--panel:#101012;--panel2:#151517;--line:#26262a;--line2:#1a1a1d;
+    --txt:#e8e6e1;--dim:#8a8a8a;--dim2:#5f5f5f;--amber:#ffb000;--up:#ff4d4f;--down:#00c087;
+    --mono:"Cascadia Mono","Consolas",monospace;--cjk:"Microsoft YaHei","PingFang SC",sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--txt);font-family:var(--cjk);font-size:13px;-webkit-font-smoothing:antialiased}
+  .num{font-family:var(--mono);font-variant-numeric:tabular-nums}
+  header{display:flex;align-items:center;gap:14px;padding:14px 22px;border-bottom:1px solid var(--line)}
+  header h1{font-size:15px;font-weight:600;letter-spacing:.06em}
+  header .k{font-family:var(--mono);font-size:10px;color:var(--dim);letter-spacing:.12em;text-transform:uppercase}
+  header .key{margin-left:auto;display:flex;gap:8px;align-items:center}
+  input,select,textarea{
+    background:#0d0d0f;border:1px solid var(--line);color:var(--txt);padding:8px 10px;
+    font-family:var(--mono);font-size:12.5px;outline:none;width:100%;
+  }
+  input:focus,textarea:focus,select:focus{border-color:var(--amber)}
+  .wrap{max-width:1280px;margin:0 auto;padding:18px 22px 60px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:14px;margin-top:14px}
+  .card{background:var(--panel);border:1px solid var(--line);padding:16px}
+  .card h2{font-family:var(--mono);font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--dim);margin-bottom:12px}
+  .row{display:flex;gap:8px;align-items:center;margin-bottom:8px}
+  .row label{color:var(--dim);font-size:11.5px;min-width:52px}
+  button{
+    background:var(--amber);color:#1a1300;border:0;padding:9px 14px;cursor:pointer;
+    font-family:var(--cjk);font-weight:700;font-size:12.5px;letter-spacing:.04em;white-space:nowrap;
+  }
+  button.ghost{background:transparent;border:1px solid var(--line);color:var(--txt);font-weight:400}
+  button.danger{background:transparent;border:1px solid #4a2323;color:var(--up);font-weight:400}
+  button:disabled{opacity:.45;cursor:default}
+  .out{margin-top:10px;font-family:var(--mono);font-size:11.5px;color:var(--dim);white-space:pre-wrap;line-height:1.7;max-height:180px;overflow:auto}
+  table{width:100%;border-collapse:collapse;font-size:12px;margin-top:6px}
+  th{font-family:var(--mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--dim);font-weight:500;text-align:left;padding:8px 6px;border-bottom:1px solid var(--line)}
+  td{padding:7px 6px;border-bottom:1px solid var(--line2);vertical-align:top}
+  td.num{font-family:var(--mono);text-align:right}
+  .pill{font-family:var(--mono);font-size:10px;border:1px solid var(--line);padding:1px 5px;color:var(--dim)}
+  .pill.on{color:var(--down);border-color:#204a36}
+  .pane{margin-top:22px}
+  .pane h2{font-size:14px;font-weight:600;letter-spacing:.04em;display:flex;align-items:center;gap:10px}
+  .pane h2 .sub{font-family:var(--mono);font-size:10px;color:var(--dim);letter-spacing:.08em;text-transform:uppercase}
+  .toolbar{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}
+  .toolbar input{width:160px}
+  .msg{margin-top:8px;font-size:12px;color:var(--up)}
+  .ok{color:var(--down)}
+  .hide{display:none}
+  @media(max-width:700px){.wrap{padding:14px}header{padding:12px 14px}}
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <div class="k">ADMIN / CONSOLE</div>
+    <h1>题材雷达 · 控制台</h1>
+  </div>
+  <div class="key">
+    <span class="k">ADMIN KEY</span>
+    <input id="key" style="width:160px" placeholder="admin888" />
+    <button onclick="saveKey()">保存</button>
+    <a href="/" style="color:var(--dim);font-size:12px">← 回前台</a>
+  </div>
+</header>
+
+<div class="wrap">
+  <div class="grid">
+    <div class="card">
+      <h2>数据流水线</h2>
+      <div class="row"><label>日期</label><input id="genDate" placeholder="留空=最新交易日，如 20261113" /></div>
+      <div class="row">
+        <button onclick="run('/api/admin/themes/generate', 'genDate')">从涨停池生成题材</button>
+        <button class="ghost" onclick="runBackfill()">历史回填 10 日</button>
+      </div>
+      <div class="row">
+        <button class="ghost" onclick="run('/api/admin/snapshot')">记录今日快照</button>
+      </div>
+      <div class="out" id="pipeOut">就绪</div>
+    </div>
+
+    <div class="card">
+      <h2>激活码</h2>
+      <div class="row"><label>天数</label><input id="codeDays" class="num" value="30" style="width:80px" /></div>
+      <div class="row"><label>数量</label><input id="codeCount" class="num" value="5" style="width:80px" /></div>
+      <div class="row"><button onclick="genCodes()">生成激活码</button></div>
+      <div class="out" id="codeOut"></div>
+    </div>
+
+    <div class="card">
+      <h2>新建题材</h2>
+      <div class="row"><label>名称</label><input id="newName" placeholder="题材名" /></div>
+      <div class="row"><label>代码</label><input id="newCode" placeholder="简称，如 AI" /></div>
+      <div class="row"><label>热度</label><input id="newHot" class="num" value="60" style="width:80px" /></div>
+      <div class="row"><label>逻辑</label><input id="newReason" placeholder="入选理由" /></div>
+      <div class="row"><button onclick="createSubject()">创建</button></div>
+      <div class="out" id="createOut"></div>
+    </div>
+  </div>
+
+  <div class="pane">
+    <h2>题材管理 <span class="sub" id="subjCount"></span></h2>
+    <div class="toolbar">
+      <input id="q" placeholder="搜索题材名" oninput="renderSubjects()" />
+      <button class="ghost" onclick="loadSubjects()">刷新</button>
+    </div>
+    <div class="out" id="subjOut"></div>
+    <table>
+      <thead><tr>
+        <th style="width:56px" class="num">ID</th><th>题材</th><th style="width:90px">代码</th>
+        <th style="width:70px" class="num">热度</th><th style="width:70px" class="num">成员</th>
+        <th>逻辑</th><th style="width:120px">操作</th>
+      </tr></thead>
+      <tbody id="subjTable"></tbody>
+    </table>
+  </div>
+
+  <div class="pane">
+    <h2>最近激活码 <span class="sub">最新 30 条</span></h2>
+    <table>
+      <thead><tr><th>激活码</th><th class="num" style="width:70px">天数</th><th>创建</th><th>状态</th></tr></thead>
+      <tbody id="codeTable"></tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+const $ = (id) => document.getElementById(id)
+const key = () => localStorage.getItem('sl_admin_key') || 'admin888'
+function saveKey(){ localStorage.setItem('sl_admin_key', $('key').value.trim()); $('key').value = key(); loadAll() }
+function hdr(extra={}){ return { 'Content-Type': 'application/json', 'X-Admin-Key': key(), ...extra } }
+function out(id, text, ok=false){ const el=$(id); el.textContent = text; el.className = 'out' + (ok?' ok':'') }
+
+async function call(url, opts={}) {
+  const res = await fetch(url, { ...opts, headers: hdr(opts.headers) })
+  const txt = await res.text()
+  let data; try { data = JSON.parse(txt) } catch(e) { data = txt }
+  if(!res.ok) throw new Error((data && (data.detail || data.message)) || ('HTTP '+res.status))
+  return data
+}
+
+async function run(path, dateInputId, label) {
+  try {
+    let url = path
+    if (dateInputId && $(dateInputId).value.trim()) {
+      url += (url.includes('?')?'&':'?') + 'date=' + $(dateInputId).value.trim()
+    }
+    out('pipeOut', '执行中…')
+    const r = await call(url, { method: 'POST' })
+    out('pipeOut', JSON.stringify(r, null, 1), true)
+    if (path.includes('themes')) loadSubjects()
+  } catch(e) { out('pipeOut', '失败: ' + e.message) }
+}
+async function runBackfill() {
+  try {
+    out('pipeOut', '回填中（需要一点时间）…')
+    const r = await call('/api/cycle/backfill?days=10', { method: 'POST' })
+    out('pipeOut', JSON.stringify(r, null, 1), true)
+  } catch(e) { out('pipeOut', '失败: ' + e.message) }
+}
+async function genCodes() {
+  try {
+    const r = await call('/api/admin/codes', { method: 'POST', body: JSON.stringify({
+      days: Number($('codeDays').value)||30, count: Number($('codeCount').value)||5 }) })
+    out('codeOut', r.codes.join('\n'), true)
+    loadCodes()
+  } catch(e) { out('codeOut', '失败: ' + e.message) }
+}
+async function createSubject() {
+  try {
+    const body = {
+      name: $('newName').value.trim(),
+      name_code: $('newCode').value.trim() || null,
+      hot: Number($('newHot').value)||0,
+      reason: $('newReason').value.trim() || null
+    }
+    if(!body.name){ out('createOut','题材名不能为空'); return }
+    const r = await call('/api/admin/subjects', { method:'POST', body: JSON.stringify(body) })
+    out('createOut', '创建成功 id=' + r.id, true)
+    $('newName').value=''; $('newCode').value=''; $('newReason').value=''
+    loadSubjects()
+  } catch(e){ out('createOut','失败: '+e.message) }
+}
+
+let SUBJECTS = []
+async function loadSubjects() {
+  try {
+    const r = await call('/api/admin/subjects')
+    SUBJECTS = r.data || []
+    $('subjCount').textContent = SUBJECTS.length + ' 个'
+    renderSubjects()
+  } catch(e) { out('subjOut', '加载失败: ' + e.message) }
+}
+function esc(s){ return String(s??'').replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])) }
+function renderSubjects() {
+  const q = $('q').value.trim().toLowerCase()
+  const rows = SUBJECTS.filter(s => !q || (s.name||'').toLowerCase().includes(q))
+  $('subjTable').innerHTML = rows.map(s => `
+    <tr data-id="${s.id}">
+      <td class="num">${s.id}</td>
+      <td><input value="${esc(s.name)}" data-f="name" /></td>
+      <td><input value="${esc(s.name_code)}" data-f="name_code" /></td>
+      <td><input class="num" value="${s.hot??0}" data-f="hot" style="width:60px" /></td>
+      <td class="num">${s.members ?? s.stock_count ?? 0}</td>
+      <td><input value="${esc(s.reason)}" data-f="reason" /></td>
+      <td>
+        <button onclick="saveRow(${s.id}, this)">保存</button>
+        <button class="danger" onclick="delRow(${s.id})">删</button>
+      </td>
+    </tr>`).join('')
+}
+async function saveRow(id, btn) {
+  const tr = btn.closest('tr')
+  const get = f => tr.querySelector(`[data-f="${f}"]`).value
+  try {
+    await call('/api/admin/subjects/' + id, { method:'PUT', body: JSON.stringify({
+      name: get('name'), name_code: get('name_code') || null, hot: Number(get('hot'))||0,
+      reason: get('reason') || null, pct_chg: 0 }) })
+    out('subjOut', '已保存 #' + id, true)
+  } catch(e) { out('subjOut', '保存失败: ' + e.message) }
+}
+async function delRow(id) {
+  if(!confirm('确认删除题材 #' + id + '？关联成分股和快照也会删除')) return
+  try { await call('/api/admin/subjects/' + id, { method:'DELETE' }); loadSubjects() }
+  catch(e) { out('subjOut', '删除失败: ' + e.message) }
+}
+async function loadCodes() {
+  try {
+    const r = await call('/api/admin/codes?limit=30')
+    $('codeTable').innerHTML = (r.data||[]).map(c => `
+      <tr><td class="num">${esc(c.code)}</td><td class="num">${c.days}</td>
+      <td class="num">${esc(c.created_at||'')}</td>
+      <td>${c.used_by ? '<span class="pill">已用 #'+c.used_by+'</span>' : '<span class="pill on">未使用</span>'}</td></tr>`).join('')
+  } catch(e) { console.error(e) }
+}
+function loadAll(){ loadSubjects(); loadCodes() }
+$('key').value = key()
+loadAll()
+</script>
+</body>
+</html>
