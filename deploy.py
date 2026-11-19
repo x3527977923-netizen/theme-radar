@@ -50,6 +50,27 @@ def files():
 
 def main():
     commit_msg = sys.argv[1] if len(sys.argv) > 1 else "update site"
+
+    # 0) 先把云端已有的每日快照拉回本地，避免全量推送时把历史覆盖掉
+    s0, tree0 = call(f"/repos/{OWNER}/{REPO}/git/trees/main?recursive=1")
+    if s0 == 200:
+        daily_dir = os.path.join(ROOT, "site", "data", "_daily")
+        os.makedirs(daily_dir, exist_ok=True)
+        pulled = 0
+        for item in tree0.get("tree") or []:
+            pth = item.get("path", "")
+            if not pth.startswith("site/data/_daily/") or not pth.endswith(".json"):
+                continue
+            local = os.path.join(ROOT, pth.replace("/", os.sep))
+            if os.path.exists(local):
+                continue
+            s1, blob = call(f"/repos/{OWNER}/{REPO}/git/blobs/{item['sha']}")
+            if s1 == 200:
+                with open(local, "wb") as f:
+                    f.write(base64.b64decode(blob["content"]))
+                pulled += 1
+        if pulled:
+            print("从云端补回历史快照:", pulled, "天")
     s, ref = call(f"/repos/{OWNER}/{REPO}/git/refs/heads/main")
     if s != 200:
         print("取分支失败:", s, str(ref)[:200])

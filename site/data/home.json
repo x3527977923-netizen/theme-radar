@@ -1,7 +1,7 @@
 {
  "ok": true,
  "data_date": "2026-11-19",
- "prev_date": "2026-11-17",
+ "prev_date": "2026-11-18",
  "market_trade_date": "2026-11-19",
  "is_latest": true,
  "stats": {
@@ -15,8 +15,8 @@
    "code": "gn_scp",
    "name": "奢侈品",
    "pct": 1.01,
-   "delta": 0.8,
-   "prev_pct": 0.21,
+   "delta": 2.33,
+   "prev_pct": -1.32,
    "stock_count": 16,
    "amount": 9333367403.0,
    "lead_name": "贵州茅台",
@@ -45,8 +45,8 @@
    "code": "gn_bjgn",
    "name": "白酒概念",
    "pct": 0.25,
-   "delta": 0.28,
-   "prev_pct": -0.03,
+   "delta": 1.09,
+   "prev_pct": -0.84,
    "stock_count": 38,
    "amount": 12872011941.0,
    "lead_name": "ST椰岛",
@@ -75,8 +75,8 @@
    "code": "gn_hwhs",
    "name": "华为海思",
    "pct": 0.14,
-   "delta": -0.64,
-   "prev_pct": 0.78,
+   "delta": -0.29,
+   "prev_pct": 0.43,
    "stock_count": 36,
    "amount": 30344727629.0,
    "lead_name": "长电科技",
@@ -105,8 +105,8 @@
    "code": "gn_kc50",
    "name": "科创50",
    "pct": 0.03,
-   "delta": 0.74,
-   "prev_pct": -0.71,
+   "delta": 0.34,
+   "prev_pct": -0.31,
    "stock_count": 50,
    "amount": 24238165632.0,
    "lead_name": "中微公司",
@@ -129,18 +129,14 @@
      "pct": 2.31
     }
    ],
-   "news": {
-    "title": "【11月19日沪深两市涨停分析】创业板指缩量下跌0.79%，科创50涨近2%，全市下跌个股超4800只。盛剑科技、真视通等3连板，一图看懂>>",
-    "time": "2026-11-19 15:26:35",
-    "url": "https://finance.sina.cn/7x24/2026-11-19/detail-inizhfae7732755.d.html"
-   }
+   "news": null
   },
   {
    "code": "gn_hhsj",
    "name": "黄河三角",
    "pct": -0.0,
-   "delta": 0.25,
-   "prev_pct": -0.25,
+   "delta": 0.06,
+   "prev_pct": -0.06,
    "stock_count": 96,
    "amount": 36745808896.0,
    "lead_name": "九阳股份",
@@ -167,5 +163,5 @@
   }
  ],
  "note": null,
- "generated_at": "2026-11-19 08:05:42"
+ "generated_at": "2026-11-19 16:09:11"
 }
