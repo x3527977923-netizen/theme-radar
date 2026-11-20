@@ -1,42 +1,102 @@
 {
  "ok": true,
- "data_date": "2026-11-19",
- "prev_date": "2026-11-18",
- "market_trade_date": "2026-11-19",
+ "data_date": "2026-11-20",
+ "prev_date": "2026-11-19",
+ "market_trade_date": "2026-11-20",
  "is_latest": true,
  "stats": {
   "total": 172,
-  "up": 10,
-  "down": 161,
+  "up": 6,
+  "down": 165,
   "flat": 1
  },
  "themes": [
   {
    "code": "gn_scp",
    "name": "奢侈品",
-   "pct": 1.01,
-   "delta": 2.33,
-   "prev_pct": -1.32,
+   "pct": 1.39,
+   "delta": 0.38,
+   "prev_pct": 1.01,
    "stock_count": 16,
-   "amount": 9333367403.0,
+   "amount": 13985423047.0,
    "lead_name": "贵州茅台",
-   "lead_pct": 17.55,
+   "lead_pct": 25.54,
    "desc": "高端消费与奢侈品牌代理、销售相关的公司。",
    "stocks": [
     {
      "code": "600519",
      "name": "贵州茅台",
-     "pct": 1.22
+     "pct": 1.75
+    },
+    {
+     "code": "300123",
+     "name": "ST亚光",
+     "pct": -0.29
     },
     {
      "code": "000858",
      "name": "五 粮 液",
-     "pct": 0.06
+     "pct": -1.16
+    }
+   ],
+   "news": null
+  },
+  {
+   "code": "gn_zr",
+   "name": "猪肉",
+   "pct": 0.01,
+   "delta": 0.24,
+   "prev_pct": -0.23,
+   "stock_count": 21,
+   "amount": 6061520447.0,
+   "lead_name": "金新农",
+   "lead_pct": 0.34,
+   "desc": "生猪养殖、屠宰与肉制品加工相关公司，价格周期跟随猪价波动。",
+   "stocks": [
+    {
+     "code": "002548",
+     "name": "金新农",
+     "pct": 9.94
     },
     {
-     "code": "601888",
-     "name": "中国中免",
-     "pct": 0.0
+     "code": "002567",
+     "name": "唐人神",
+     "pct": 5.31
+    },
+    {
+     "code": "002157",
+     "name": "正邦科技",
+     "pct": 3.47
+    }
+   ],
+   "news": null
+  },
+  {
+   "code": "gn_swyz",
+   "name": "生物育种",
+   "pct": 0.0,
+   "delta": 0.2,
+   "prev_pct": -0.2,
+   "stock_count": 15,
+   "amount": 4130383394.0,
+   "lead_name": "万向德农",
+   "lead_pct": 0.97,
+   "desc": "题材分类，包含 15 只股票。",
+   "stocks": [
+    {
+     "code": "600371",
+     "name": "万向德农",
+     "pct": 9.98
+    },
+    {
+     "code": "002086",
+     "name": "东方海洋",
+     "pct": 9.97
+    },
+    {
+     "code": "002157",
+     "name": "正邦科技",
+     "pct": 3.47
     }
    ],
    "news": null
@@ -44,124 +104,64 @@
   {
    "code": "gn_bjgn",
    "name": "白酒概念",
-   "pct": 0.25,
-   "delta": 1.09,
-   "prev_pct": -0.84,
+   "pct": -0.03,
+   "delta": -0.28,
+   "prev_pct": 0.25,
    "stock_count": 38,
-   "amount": 12872011941.0,
-   "lead_name": "ST椰岛",
-   "lead_pct": 0.21,
+   "amount": 18018049606.0,
+   "lead_name": "贵州茅台",
+   "lead_pct": 25.54,
    "desc": "白酒生产与销售相关的上市公司，代表高端消费品的一类资产。",
    "stocks": [
     {
-     "code": "600238",
-     "name": "ST椰岛",
-     "pct": 4.87
-    },
-    {
      "code": "600519",
      "name": "贵州茅台",
-     "pct": 1.22
+     "pct": 1.75
     },
     {
-     "code": "603369",
-     "name": "今世缘",
-     "pct": 1.13
+     "code": "000888",
+     "name": "峨眉山Ａ",
+     "pct": 0.1
+    },
+    {
+     "code": "000858",
+     "name": "五 粮 液",
+     "pct": -1.16
     }
    ],
    "news": null
   },
   {
-   "code": "gn_hwhs",
-   "name": "华为海思",
-   "pct": 0.14,
-   "delta": -0.29,
-   "prev_pct": 0.43,
-   "stock_count": 36,
-   "amount": 30344727629.0,
-   "lead_name": "长电科技",
-   "lead_pct": 2.51,
-   "desc": "与华为海思在芯片、模组或供应链上有合作关系的公司。",
+   "code": "gn_swrl",
+   "name": "生物燃料",
+   "pct": -0.04,
+   "delta": 0.09,
+   "prev_pct": -0.13,
+   "stock_count": 13,
+   "amount": 1509945208.0,
+   "lead_name": "万向德农",
+   "lead_pct": 0.97,
+   "desc": "题材分类，包含 13 只股票。",
    "stocks": [
     {
-     "code": "600584",
-     "name": "长电科技",
-     "pct": 4.74
+     "code": "600371",
+     "name": "万向德农",
+     "pct": 9.98
     },
     {
-     "code": "002185",
-     "name": "华天科技",
-     "pct": 3.59
-    },
-    {
-     "code": "002371",
-     "name": "北方华创",
-     "pct": 3.13
-    }
-   ],
-   "news": null
-  },
-  {
-   "code": "gn_kc50",
-   "name": "科创50",
-   "pct": 0.03,
-   "delta": 0.34,
-   "prev_pct": -0.31,
-   "stock_count": 50,
-   "amount": 24238165632.0,
-   "lead_name": "中微公司",
-   "lead_pct": 12.33,
-   "desc": "题材分类，包含 50 只股票。",
-   "stocks": [
-    {
-     "code": "688012",
-     "name": "中微公司",
-     "pct": 5.05
-    },
-    {
-     "code": "688111",
-     "name": "金山办公",
-     "pct": 2.33
-    },
-    {
-     "code": "688019",
-     "name": "安集科技",
-     "pct": 2.31
-    }
-   ],
-   "news": null
-  },
-  {
-   "code": "gn_hhsj",
-   "name": "黄河三角",
-   "pct": -0.0,
-   "delta": 0.06,
-   "prev_pct": -0.06,
-   "stock_count": 96,
-   "amount": 36745808896.0,
-   "lead_name": "九阳股份",
-   "lead_pct": 2.84,
-   "desc": "题材分类，包含 96 只股票。",
-   "stocks": [
-    {
-     "code": "002242",
-     "name": "九阳股份",
-     "pct": 10.01
-    },
-    {
-     "code": "600882",
-     "name": "妙可蓝多",
+     "code": "600803",
+     "name": "新奥股份",
      "pct": 3.89
     },
     {
-     "code": "300308",
-     "name": "中际旭创",
-     "pct": 3.05
+     "code": "002124",
+     "name": "天邦食品",
+     "pct": 2.02
     }
    ],
    "news": null
   }
  ],
  "note": null,
- "generated_at": "2026-11-19 16:14:55"
+ "generated_at": "2026-11-20 16:07:58"
 }
