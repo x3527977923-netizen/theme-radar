@@ -2,16 +2,18 @@
 """题材雷达 · 静态站数据生成器（GitHub Actions 每天收盘后运行）
 
 产出（全部写进 site/data/）：
-  home.json      首页：最近交易日 + 3~5 个值得看的题材（含涨幅靠前个股、公开消息）
-  sectors.json   全部题材当日行情 + 较上一交易日变化
+  home.json      首页盘后驾驶舱：交易日 + 市场广度 + 涨停情绪 + 强势题材
+  limitup.json   涨停解读与连板梯队（涨停池 / 炸板池 / 跌停池 / 题材归因）
+  sectors.json   全部题材当日行情 + 较上一交易日变化 + 真实热度
   stocks.json    每个题材涨幅靠前的成分股（前 20 只）
   indices.json   主要指数
   history.json   近 30 个交易日 × 题材 的涨幅矩阵（由 data/_daily/*.json 累积）
   _daily/YYYY-MM-DD.json  当日原始快照（用于累积历史）
 
-数据来源：新浪财经、腾讯财经公开行情接口。仅陈述事实，不预测涨跌。
+数据来源：新浪财经、腾讯财经、东方财富公开行情接口。仅陈述事实，不预测涨跌。
 """
 import json
+import math
 import os
 import re
 import sys
@@ -27,6 +29,7 @@ DAILY = os.path.join(DATA, "_daily")
 UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
       "(KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36")
 HDR_SINA = {"User-Agent": UA, "Referer": "https://finance.sina.com.cn/"}
+HDR_EM = {"User-Agent": UA, "Referer": "https://quote.eastmoney.com/"}
 
 SKIP = {
     "融资融券", "转融券标的", "基金重仓", "QFII重仓", "保险重仓", "社保重仓",
@@ -96,9 +99,11 @@ def gbk_text(url, headers=None):
     return http(url, headers).decode("gbk", "ignore")
 
 
-def cache_json(url):
-    raw = http(url).decode("utf-8", "ignore")
-    return json.loads(raw)
+def fmt_hhmmss(v):
+    if not v:
+        return ""
+    s = str(int(v)).zfill(6)
+    return f"{s[:2]}:{s[2:4]}:{s[4:6]}"
 
 
 # ---------- 交易日 ----------
@@ -113,9 +118,154 @@ def market_trade_date():
     return datetime.now().strftime("%Y-%m-%d")
 
 
+# ---------- 东财涨停/炸板/跌停池 ----------
+def _em_pool(endpoint, sort_expr, ymd):
+    url = (f"https://push2ex.eastmoney.com/{endpoint}"
+           f"?ut=7eea3edcaed734bea9cbfc24409ed989&dpt=wz.ztzt"
+           f"&Pageindex=0&pagesize=200&sort={sort_expr}&date={ymd}")
+    raw = http(url, headers=HDR_EM, timeout=15, tries=2).decode("utf-8", "ignore")
+    d = json.loads(raw)
+    return (d.get("data") or {}).get("pool") or []
+
+
+def fetch_limitup(trade_date):
+    ymd = trade_date.replace("-", "")
+    zt_raw, zb_raw, dt_raw = [], [], []
+    try:
+        zt_raw = _em_pool("getTopicZTPool", "lbc:desc", ymd)
+    except Exception as e:
+        print("涨停池拉取失败:", repr(e)[:100])
+    try:
+        zb_raw = _em_pool("getTopicZBPool", "fbt:asc", ymd)
+    except Exception as e:
+        print("炸板池拉取失败:", repr(e)[:100])
+    try:
+        dt_raw = _em_pool("getTopicDTPool", "fund:asc", ymd)
+    except Exception as e:
+        print("跌停池拉取失败:", repr(e)[:100])
+
+    zt_list = []
+    for x in zt_raw:
+        zttj = x.get("zttj") or {}
+        days, ct = zttj.get("days") or 0, zttj.get("ct") or 0
+        stat = f"{days}天{ct}板" if days > 1 and ct > 1 else ""
+        zt_list.append({
+            "code": str(x.get("c") or ""),
+            "name": x.get("n") or "",
+            "price": round((x.get("p") or 0) / 1000.0, 2),
+            "pct": round(float(x.get("zdp") or 0), 2),
+            "lbc": int(x.get("lbc") or 1),
+            "hybk": (x.get("hybk") or "其他").strip() or "其他",
+            "fund": float(x.get("fund") or 0),
+            "amount": float(x.get("amount") or 0),
+            "hs": round(float(x.get("hs") or 0), 2),
+            "fbt": fmt_hhmmss(x.get("fbt")),
+            "lbt": fmt_hhmmss(x.get("lbt")),
+            "zbc": int(x.get("zbc") or 0),
+            "stat": stat,
+            "ltsz": float(x.get("ltsz") or 0),
+        })
+
+    # 连板天梯（按连板数分组）
+    by_board = {}
+    for s in zt_list:
+        by_board.setdefault(s["lbc"], []).append(s)
+    ladders = []
+    for b in sorted(by_board.keys(), reverse=True):
+        arr = sorted(by_board[b], key=lambda x: (x["fbt"] or "99:99:99", -x["fund"]))
+        ladders.append({
+            "board": b,
+            "label": "首板" if b == 1 else f"{b}连板",
+            "count": len(arr),
+            "stocks": arr,
+        })
+
+    # 按所属题材/行业归因
+    by_theme = {}
+    for s in zt_list:
+        by_theme.setdefault(s["hybk"], []).append(s)
+    theme_groups = []
+    for tname, arr in by_theme.items():
+        arr_sorted = sorted(arr, key=lambda x: (-x["lbc"], x["fbt"] or "99:99:99"))
+        theme_groups.append({
+            "name": tname,
+            "count": len(arr_sorted),
+            "max_board": max(x["lbc"] for x in arr_sorted),
+            "total_seal": sum(x["fund"] for x in arr_sorted),
+            "total_amount": sum(x["amount"] for x in arr_sorted),
+            "leader": arr_sorted[0]["name"] if arr_sorted else "",
+            "stocks": arr_sorted,
+        })
+    theme_groups.sort(key=lambda g: (-g["count"], -g["max_board"], -g["total_seal"]))
+
+    # 炸板池
+    zb_list = []
+    for x in zb_raw:
+        zb_list.append({
+            "code": str(x.get("c") or ""),
+            "name": x.get("n") or "",
+            "price": round((x.get("p") or 0) / 1000.0, 2),
+            "pct": round(float(x.get("zdp") or 0), 2),
+            "hybk": (x.get("hybk") or "其他").strip() or "其他",
+            "fbt": fmt_hhmmss(x.get("fbt")),
+            "zbc": int(x.get("zbc") or 1),
+            "amount": float(x.get("amount") or 0),
+            "hs": round(float(x.get("hs") or 0), 2),
+            "zf": round(float(x.get("zf") or 0), 2),
+        })
+
+    # 跌停池
+    dt_list = []
+    for x in dt_raw:
+        dt_list.append({
+            "code": str(x.get("c") or ""),
+            "name": x.get("n") or "",
+            "price": round((x.get("p") or 0) / 1000.0, 2),
+            "pct": round(float(x.get("zdp") or 0), 2),
+            "hybk": (x.get("hybk") or "其他").strip() or "其他",
+            "days": int(x.get("days") or 1),
+            "oc": int(x.get("oc") or 0),
+            "amount": float(x.get("amount") or 0),
+            "hs": round(float(x.get("hs") or 0), 2),
+            "fund": float(x.get("fund") or 0),
+        })
+
+    zt_cnt = len(zt_list)
+    zb_cnt = len(zb_list)
+    dt_cnt = len(dt_list)
+    zb_rate = round(zb_cnt / (zt_cnt + zb_cnt) * 100, 1) if (zt_cnt + zb_cnt) else 0.0
+    max_board = max((x["lbc"] for x in zt_list), default=0)
+    lianban_cnt = sum(1 for x in zt_list if x["lbc"] >= 2)
+    total_seal = sum(x["fund"] for x in zt_list)
+    zt_amount = sum(x["amount"] for x in zt_list)
+
+    return {
+        "data_date": trade_date,
+        "summary": {
+            "zt_count": zt_cnt,
+            "zb_count": zb_cnt,
+            "dt_count": dt_cnt,
+            "zb_rate": zb_rate,
+            "max_board": max_board,
+            "lianban_count": lianban_cnt,
+            "total_seal": total_seal,
+            "zt_amount": zt_amount,
+        },
+        "ladders": ladders,
+        "themes": theme_groups,
+        "zb_pool": zb_list,
+        "dt_pool": dt_list,
+        "generated_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+    }
+
+
 # ---------- 题材 ----------
 def fetch_sectors():
-    """新浪概念板块（172 个）"""
+    """新浪概念板块（172 个）
+    字段顺序：
+      0:code 1:name 2:count 3:avg_price 4:avg_chg_yuan 5:pct(%)
+      6:volume 7:amount 8:lead_code 9:lead_pct(%) 10:lead_price 11:lead_chg_yuan 12:lead_name
+    """
     url = "https://vip.stock.finance.sina.com.cn/q/view/newFLJK.php?param=class"
     txt = gbk_text(url)
     body = txt.split("=", 1)[1].strip().strip(";").strip()
@@ -126,9 +276,13 @@ def fetch_sectors():
         if len(p) < 13:
             continue
         try:
-            pct = round(float(p[4]), 2)
+            pct = round(float(p[5]), 2)
         except Exception:
             pct = None
+        try:
+            lead_pct = round(float(p[9]), 2) if p[9] else None
+        except Exception:
+            lead_pct = None
         out.append({
             "code": p[0], "name": p[1],
             "count": int(p[2]) if p[2].isdigit() else None,
@@ -136,7 +290,7 @@ def fetch_sectors():
             "pct": pct,
             "lead_code": re.sub(r"^[a-z]{2}", "", p[8]),
             "lead_name": p[12] if len(p) > 12 else None,
-            "lead_pct": round(float(p[11]), 2) if len(p) > 11 and p[11] else None,
+            "lead_pct": lead_pct,
         })
     out.sort(key=lambda x: (x["pct"] is not None, x["pct"] or -99), reverse=True)
     return out
@@ -154,7 +308,6 @@ def sector_stocks(code, num=20):
     out = []
     for x in arr:
         nm = x.get("name") or ""
-        # 过滤退市股、停牌无价股，避免把噪音当成「涨幅靠前」
         if "退市" in nm:
             continue
         try:
@@ -198,7 +351,6 @@ def fetch_indices():
     return out
 
 
-# ---------- 快讯（用于给题材找公开背景） ----------
 def fetch_news(limit=100):
     try:
         u = ("https://zhibo.sina.com.cn/api/zhibo/feed"
@@ -241,18 +393,27 @@ def recent_dates(n=30):
     return sorted(fs, reverse=True)[:n]
 
 
+def calc_hot(pct, amount, zt_hits=0):
+    """综合热度分（0-100+）：涨幅动量 + 成交规模 + 涨停催化"""
+    score = 0.0
+    if pct is not None:
+        score += max(-20.0, min(50.0, (pct + 2.0) * 7.0))
+    if amount and amount > 0:
+        score += min(30.0, max(0.0, (math.log10(amount) - 7.5) * 9.0))
+    score += zt_hits * 15.0
+    return max(0, int(round(score)))
+
+
 def main():
     os.makedirs(DAILY, exist_ok=True)
     trade_date = market_trade_date()
     print("交易日:", trade_date)
 
-    # 幂等：当天收盘数据已抓过就跳过，避免多次 cron 产生重复提交
-    force = '--force' in sys.argv
+    force = "--force" in sys.argv
     existing = load_daily(trade_date)
     if (not force) and existing and len((existing.get("rows") or {})) >= 150:
-        print("当天数据已存在（%d 个题材），跳过。需要重抓请加 --force" % len(existing.get("rows") or {}))
-        # 仍然刷新首页/矩阵（成本很低），保证 generated_at 更新
-        if os.path.isfile(os.path.join(DATA, "home.json")):
+        if os.path.isfile(os.path.join(DATA, "limitup.json")) and os.path.isfile(os.path.join(DATA, "home.json")):
+            print("当天数据已存在（%d 个题材），跳过。需要重抓请加 --force" % len(existing.get("rows") or {}))
             return 0
 
     sectors = fetch_sectors()
@@ -261,7 +422,17 @@ def main():
         return 1
     print("题材数:", len(sectors))
 
-    # 当日快照落盘（幂等）
+    # ---- limitup.json ----
+    limitup = fetch_limitup(trade_date)
+    with open(os.path.join(DATA, "limitup.json"), "w", encoding="utf-8") as f:
+        json.dump(limitup, f, ensure_ascii=False)
+    sm = limitup["summary"]
+    print("涨停池: 涨停 %d / 炸板 %d (%.1f%%) / 跌停 %d / 最高 %d 板"
+          % (sm["zt_count"], sm["zb_count"], sm["zb_rate"], sm["dt_count"], sm["max_board"]))
+
+    zt_codes = {s["code"] for l in limitup["ladders"] for s in l["stocks"]}
+
+    # 当日快照落盘
     with open(os.path.join(DAILY, trade_date + ".json"), "w", encoding="utf-8") as f:
         json.dump({"date": trade_date,
                    "rows": {s["code"]: {"name": s["name"], "pct": s["pct"],
@@ -278,15 +449,28 @@ def main():
         if pd:
             prev = {k: v.get("pct") for k, v in (pd.get("rows") or {}).items()}
 
+    # ---- stocks.json（每个题材前 20 只） ----
+    all_stocks = {}
+    for i, s in enumerate(sectors, 1):
+        all_stocks[s["code"]] = sector_stocks(s["code"], 20)
+        if i % 30 == 0:
+            print("  成分股进度 %d/%d" % (i, len(sectors)))
+    with open(os.path.join(DATA, "stocks.json"), "w", encoding="utf-8") as f:
+        json.dump({"data_date": trade_date, "data": all_stocks}, f, ensure_ascii=False)
+
     # ---- sectors.json ----
     data_rows = []
     for s in sectors:
+        code = s["code"]
         d = None
-        if prev_date and s["pct"] is not None and prev.get(s["code"]) is not None:
-            d = round(s["pct"] - prev[s["code"]], 2)
+        if prev_date and s["pct"] is not None and prev.get(code) is not None:
+            d = round(s["pct"] - prev[code], 2)
+        st_list = all_stocks.get(code) or []
+        zt_hits = sum(1 for x in st_list if x["code"] in zt_codes)
+        hot = calc_hot(s["pct"], s["amount"], zt_hits)
         data_rows.append({
-            "id": s["code"], "code": s["code"], "name": s["name"],
-            "name_code": s["code"].upper().replace("GN_", "GN_"),
+            "id": code, "code": code, "name": s["name"],
+            "name_code": code.upper(),
             "pct": s["pct"], "pct_chg": s["pct"], "pct_src": "sina",
             "delta": d,
             "count": s["count"], "stock_count": s["count"],
@@ -294,20 +478,11 @@ def main():
             "lead_code": s["lead_code"], "lead_name": s["lead_name"],
             "lead_pct": s["lead_pct"],
             "leader": {"name": s["lead_name"], "pctChg": s["lead_pct"]},
-            "hot": 0, "limit_up": None,
+            "hot": hot, "limit_up": zt_hits,
         })
     with open(os.path.join(DATA, "sectors.json"), "w", encoding="utf-8") as f:
         json.dump({"data_date": trade_date, "prev_date": prev_date,
                    "data": data_rows}, f, ensure_ascii=False)
-
-    # ---- stocks.json（每个题材前 20 只） ----
-    all_stocks = {}
-    for i, s in enumerate(sectors, 1):
-        all_stocks[s["code"]] = sector_stocks(s["code"], 20)
-        if i % 20 == 0:
-            print("  成分股进度 %d/%d" % (i, len(sectors)))
-    with open(os.path.join(DATA, "stocks.json"), "w", encoding="utf-8") as f:
-        json.dump({"data_date": trade_date, "data": all_stocks}, f, ensure_ascii=False)
 
     # ---- indices.json ----
     try:
@@ -336,25 +511,41 @@ def main():
     with open(os.path.join(DATA, "history.json"), "w", encoding="utf-8") as f:
         json.dump({"dates": hist_dates, "rows": rows}, f, ensure_ascii=False)
 
-    # ---- home.json ----
-    cand = [s for s in sectors if s["name"] not in SKIP and s["pct"] is not None]
-    cand.sort(key=lambda s: s["pct"], reverse=True)
+    # ---- home.json（盘后驾驶舱） ----
+    cand = [r for r in data_rows if r["name"] not in SKIP and r["pct"] is not None]
+    cand.sort(key=lambda r: r["pct"], reverse=True)
     news = fetch_news()
     themes = []
-    for s in cand[:5]:
+    for s in cand[:8]:
         code = s["code"]
         prev_pct = prev.get(code) if prev_date else None
-        delta = round(s["pct"] - prev_pct, 2) if (prev_pct is not None and s["pct"] is not None) else None
         themes.append({
             "code": code, "name": s["name"], "pct": s["pct"],
-            "delta": delta, "prev_pct": prev_pct,
+            "delta": s["delta"], "prev_pct": prev_pct,
             "stock_count": s["count"], "amount": s["amount"],
             "lead_name": s["lead_name"], "lead_pct": s["lead_pct"],
+            "hot": s["hot"], "limit_up": s["limit_up"],
             "desc": DESC.get(s["name"]) or f"题材分类，包含 {s['count']} 只股票。",
             "stocks": [{"code": x["code"], "name": x["name"], "pct": x["pctChg"]}
                        for x in (all_stocks.get(code) or [])[:3]],
             "news": match_news(s["name"], news),
         })
+
+    # 近 5 日持续性最强题材
+    last5 = hist_dates[-5:]
+    sustained = []
+    for r in rows:
+        if r["name"] in SKIP:
+            continue
+        up_days = sum(1 for d in last5 if (r["cells"].get(d) or {}).get("pct_chg") is not None and r["cells"][d]["pct_chg"] > 0)
+        latest = (r["cells"].get(trade_date) or {}).get("pct_chg")
+        if up_days >= 2 and latest is not None:
+            sustained.append({
+                "code": r["code"], "name": r["name"],
+                "up_days": up_days, "window": len(last5), "latest": latest,
+                "series": [(r["cells"].get(d) or {}).get("pct_chg") for d in last5],
+            })
+    sustained.sort(key=lambda x: (-x["up_days"], -(x["latest"] or -99)))
 
     total = len([s for s in sectors if s["pct"] is not None])
     up = len([s for s in sectors if (s["pct"] or 0) > 0])
@@ -363,13 +554,19 @@ def main():
         "ok": True, "data_date": trade_date, "prev_date": prev_date,
         "market_trade_date": trade_date, "is_latest": True,
         "stats": {"total": total, "up": up, "down": down, "flat": total - up - down},
-        "themes": themes, "note": None,
+        "emotion": limitup["summary"],
+        "top_ladders": [l for l in limitup["ladders"] if l["board"] >= 2][:4],
+        "zt_themes": limitup["themes"][:8],
+        "themes": themes,
+        "sustained": sustained[:6],
+        "sustained_dates": last5,
+        "note": None,
         "generated_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
     }
     with open(os.path.join(DATA, "home.json"), "w", encoding="utf-8") as f:
         json.dump(home, f, ensure_ascii=False, indent=1)
 
-    print("完成: 题材 %d / 成分股题材 %d / 历史 %d 天 / 首页 %d 条"
+    print("完成: 题材 %d / 成分股题材 %d / 历史 %d 天 / 首页题材 %d 条"
           % (len(sectors), len(all_stocks), len(hist_dates), len(themes)))
     return 0
 

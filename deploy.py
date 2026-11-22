@@ -15,24 +15,30 @@ SKIP_NAMES = {".ghtoken", "publish.py", ".runid"}
 SKIP_DIRS = {".git", "node_modules", "__pycache__"}
 
 
-def call(path, method="GET", body=None):
+def call(path, method="GET", body=None, tries=4):
     data = json.dumps(body).encode() if body is not None else None
-    req = urllib.request.Request(API + path, data=data, method=method, headers={
-        "Authorization": "token " + TOKEN,
-        "Accept": "application/vnd.github+json",
-        "User-Agent": "stocklab-publisher",
-        "Content-Type": "application/json",
-    })
-    try:
-        with urllib.request.urlopen(req, timeout=90) as r:
-            t = r.read().decode("utf-8", "ignore")
-            return r.status, (json.loads(t) if t else {})
-    except urllib.error.HTTPError as e:
-        t = e.read().decode("utf-8", "ignore")
+    last_err = None
+    for attempt in range(tries):
+        req = urllib.request.Request(API + path, data=data, method=method, headers={
+            "Authorization": "token " + TOKEN,
+            "Accept": "application/vnd.github+json",
+            "User-Agent": "stocklab-publisher",
+            "Content-Type": "application/json",
+        })
         try:
-            return e.code, json.loads(t or "{}")
-        except Exception:
-            return e.code, {"raw": t[:300]}
+            with urllib.request.urlopen(req, timeout=90) as r:
+                t = r.read().decode("utf-8", "ignore")
+                return r.status, (json.loads(t) if t else {})
+        except urllib.error.HTTPError as e:
+            t = e.read().decode("utf-8", "ignore")
+            try:
+                return e.code, json.loads(t or "{}")
+            except Exception:
+                return e.code, {"raw": t[:300]}
+        except Exception as e:
+            last_err = e
+            time.sleep(1.5 * (attempt + 1))
+    raise last_err
 
 
 def files():
