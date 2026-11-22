@@ -438,6 +438,194 @@
    ]
   }
  ],
+ "top_inflow": [
+  {
+   "code": "BK1142",
+   "name": "裸眼3D",
+   "pct": -2.64,
+   "main_inflow": 1524932144.0,
+   "main_ratio": 12.57,
+   "super_inflow": 1344363600.0,
+   "big_inflow": 180568544.0,
+   "lead_name": "超声电子",
+   "lead_code": "000823"
+  },
+  {
+   "code": "BK1632",
+   "name": "昨日高换手",
+   "pct": -3.33,
+   "main_inflow": 1457708032.0,
+   "main_ratio": 2.43,
+   "super_inflow": 2395758592.0,
+   "big_inflow": -938050560.0,
+   "lead_name": "冰山冷热",
+   "lead_code": "000530"
+  },
+  {
+   "code": "BK1636",
+   "name": "红利破净股",
+   "pct": -0.48,
+   "main_inflow": 890598144.0,
+   "main_ratio": 2.25,
+   "super_inflow": 606592256.0,
+   "big_inflow": 284005888.0,
+   "lead_name": "中国平安",
+   "lead_code": "601318"
+  },
+  {
+   "code": "BK1017",
+   "name": "资源开采概念",
+   "pct": -2.37,
+   "main_inflow": 792638992.0,
+   "main_ratio": 3.45,
+   "super_inflow": 683843600.0,
+   "big_inflow": 108795392.0,
+   "lead_name": "紫金矿业",
+   "lead_code": "601899"
+  },
+  {
+   "code": "BK0967",
+   "name": "水产概念",
+   "pct": -1.2,
+   "main_inflow": 724213392.0,
+   "main_ratio": 14.5,
+   "super_inflow": 722795680.0,
+   "big_inflow": 1417712.0,
+   "lead_name": "东方海洋",
+   "lead_code": "002086"
+  },
+  {
+   "code": "BK0498",
+   "name": "AB股",
+   "pct": -3.29,
+   "main_inflow": 716727216.0,
+   "main_ratio": 4.41,
+   "super_inflow": 803212016.0,
+   "big_inflow": -86484800.0,
+   "lead_name": "冰山冷热",
+   "lead_code": "000530"
+  }
+ ],
+ "global_items": [
+  {
+   "symbol": "SOXX",
+   "name": "费城半导体ETF",
+   "sector": "半导体/芯片",
+   "price": "123.40",
+   "pct": -10.55,
+   "a_themes": [
+    {
+     "code": "gn_bdt",
+     "name": "半导体"
+    },
+    {
+     "code": "gn_gcxp",
+     "name": "国产芯片"
+    },
+    {
+     "code": "gn_hwhs",
+     "name": "华为海思"
+    }
+   ]
+  },
+  {
+   "symbol": "NVDA",
+   "name": "英伟达 NVDA",
+   "sector": "AI算力",
+   "price": "125.53",
+   "pct": -14.01,
+   "a_themes": [
+    {
+     "code": "gn_rgzn",
+     "name": "人工智能"
+    },
+    {
+     "code": "gn_slgn",
+     "name": "算力概念"
+    },
+    {
+     "code": "gn_gmk",
+     "name": "光模块"
+    }
+   ]
+  },
+  {
+   "symbol": "XLK",
+   "name": "美股科技ETF",
+   "sector": "科技成长",
+   "price": "149.01",
+   "pct": -7.27,
+   "a_themes": [
+    {
+     "code": "gn_rgzn",
+     "name": "人工智能"
+    },
+    {
+     "code": "gn_xc",
+     "name": "信创"
+    },
+    {
+     "code": "gn_sjys",
+     "name": "数据要素"
+    }
+   ]
+  },
+  {
+   "symbol": "TSLA",
+   "name": "特斯拉 TSLA",
+   "sector": "智能汽车/机器人",
+   "price": "345.82",
+   "pct": -7.64,
+   "a_themes": [
+    {
+     "code": "gn_tslgn",
+     "name": "特斯拉概念"
+    },
+    {
+     "code": "gn_xnyc",
+     "name": "新能源车"
+    },
+    {
+     "code": "gn_jqrgn",
+     "name": "机器人概念"
+    }
+   ]
+  },
+  {
+   "symbol": "AAPL",
+   "name": "苹果 AAPL",
+   "sector": "消费电子",
+   "price": "342.56",
+   "pct": -1.9,
+   "a_themes": [
+    {
+     "code": "gn_pggn",
+     "name": "苹果概念"
+    },
+    {
+     "code": "gn_xfdz",
+     "name": "消费电子"
+    }
+   ]
+  },
+  {
+   "symbol": "KWEB",
+   "name": "中概互联ETF",
+   "sector": "互联网/传媒",
+   "price": "20.72",
+   "pct": -2.77,
+   "a_themes": [
+    {
+     "code": "gn_cm",
+     "name": "传媒"
+    },
+    {
+     "code": "gn_yxgn",
+     "name": "游戏概念"
+    }
+   ]
+  }
+ ],
  "themes": [
   {
    "code": "gn_scp",
@@ -790,5 +978,5 @@
   "2026-11-20"
  ],
  "note": null,
- "generated_at": "2026-11-22 23:34:04"
+ "generated_at": "2026-11-23 00:01:11"
 }

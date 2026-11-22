@@ -332,6 +332,111 @@ def sector_stocks(code, num=20):
     return out
 
 
+# ---------- 东财板块主力资金流向 ----------
+def _em_flow_list(fs, po=1, pz=25):
+    url = (f"https://push2.eastmoney.com/api/qt/clist/get"
+           f"?pn=1&pz={pz}&po={po}&np=1&fltt=2&invt=2&fid=f62&fs={fs}"
+           f"&fields=f12,f14,f2,f3,f62,f184,f66,f69,f72,f75,f204,f205")
+    raw = http(url, headers={"User-Agent": UA, "Referer": "https://data.eastmoney.com/"},
+               timeout=15, tries=2).decode("utf-8", "ignore")
+    d = json.loads(raw)
+    diff = (d.get("data") or {}).get("diff") or []
+    out = []
+    for x in diff:
+        def num(k):
+            v = x.get(k)
+            if v is None or v == "-":
+                return None
+            try:
+                return float(v)
+            except Exception:
+                return None
+        out.append({
+            "code": str(x.get("f12") or ""),
+            "name": str(x.get("f14") or ""),
+            "pct": num("f3"),
+            "main_inflow": num("f62"),
+            "main_ratio": num("f184"),
+            "super_inflow": num("f66"),
+            "big_inflow": num("f72"),
+            "lead_name": str(x.get("f204") or ""),
+            "lead_code": str(x.get("f205") or ""),
+        })
+    return out
+
+
+def fetch_fund_flow(trade_date):
+    res = {
+        "data_date": trade_date,
+        "concept_in": [], "concept_out": [],
+        "industry_in": [], "industry_out": [],
+        "generated_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+    }
+    for key, fs, po in [
+        ("concept_in", "m:90+t:3", 1),
+        ("concept_out", "m:90+t:3", 0),
+        ("industry_in", "m:90+t:2", 1),
+        ("industry_out", "m:90+t:2", 0),
+    ]:
+        try:
+            res[key] = _em_flow_list(fs, po=po, pz=25)
+        except Exception as e:
+            print(f"资金流 {key} 拉取失败:", repr(e)[:100])
+    return res
+
+
+# ---------- 隔夜外盘 → A 股映射 ----------
+GLOBAL_MAP = [
+    ("usSOXX", "费城半导体ETF", "半导体/芯片", [("gn_bdt", "半导体"), ("gn_gcxp", "国产芯片"), ("gn_hwhs", "华为海思")]),
+    ("usNVDA", "英伟达 NVDA", "AI算力", [("gn_rgzn", "人工智能"), ("gn_slgn", "算力概念"), ("gn_gmk", "光模块")]),
+    ("usXLK", "美股科技ETF", "科技成长", [("gn_rgzn", "人工智能"), ("gn_xc", "信创"), ("gn_sjys", "数据要素")]),
+    ("usTSLA", "特斯拉 TSLA", "智能汽车/机器人", [("gn_tslgn", "特斯拉概念"), ("gn_xnyc", "新能源车"), ("gn_jqrgn", "机器人概念")]),
+    ("usAAPL", "苹果 AAPL", "消费电子", [("gn_pggn", "苹果概念"), ("gn_xfdz", "消费电子")]),
+    ("usKWEB", "中概互联ETF", "互联网/传媒", [("gn_cm", "传媒"), ("gn_yxgn", "游戏概念")]),
+    ("usGLD", "黄金ETF", "贵金属", [("gn_hjgn", "黄金概念"), ("gn_ysjs", "有色金属")]),
+    ("usXLE", "美股能源ETF", "传统能源", [("gn_mt", "煤炭")]),
+    ("usXLV", "美股医疗ETF", "医药医疗", [("gn_cxy", "创新药"), ("gn_ylqx", "医疗器械")]),
+]
+
+
+def fetch_global_map(trade_date):
+    syms = [x[0] for x in GLOBAL_MAP]
+    meta = {x[0].replace("us", ""): x for x in GLOBAL_MAP}
+    items = []
+    try:
+        txt = gbk_text("https://qt.gtimg.cn/q=" + ",".join(syms),
+                       {"User-Agent": UA, "Referer": "https://gu.qq.com/"})
+        for line in txt.split(";"):
+            if "=" not in line:
+                continue
+            f = line.split("=", 1)[1].strip().strip('"').split("~")
+            if len(f) < 33:
+                continue
+            raw_code = f[2].split(".")[0]
+            m = meta.get(raw_code)
+            if not m:
+                continue
+            try:
+                pct = round(float(f[32]), 2)
+            except Exception:
+                pct = None
+            items.append({
+                "symbol": raw_code,
+                "name": m[1],
+                "sector": m[2],
+                "price": f[3],
+                "pct": pct,
+                "a_themes": [{"code": c, "name": n} for c, n in m[3]],
+            })
+    except Exception as e:
+        print("外盘映射拉取失败:", repr(e)[:100])
+    return {
+        "data_date": trade_date,
+        "items": items,
+        "generated_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+    }
+
+
 def fetch_indices():
     syms = ["sh000001", "sz399001", "sz399006", "sh000688", "hkHSI", "usDJI", "usIXIC"]
     names = {"000001": "上证指数", "399001": "深证成指", "399006": "创业板指",
@@ -412,7 +517,7 @@ def main():
     force = "--force" in sys.argv
     existing = load_daily(trade_date)
     if (not force) and existing and len((existing.get("rows") or {})) >= 150:
-        if os.path.isfile(os.path.join(DATA, "limitup.json")) and os.path.isfile(os.path.join(DATA, "home.json")):
+        if all(os.path.isfile(os.path.join(DATA, fn)) for fn in ("limitup.json", "flow.json", "global.json", "home.json")):
             print("当天数据已存在（%d 个题材），跳过。需要重抓请加 --force" % len(existing.get("rows") or {}))
             return 0
 
@@ -429,6 +534,18 @@ def main():
     sm = limitup["summary"]
     print("涨停池: 涨停 %d / 炸板 %d (%.1f%%) / 跌停 %d / 最高 %d 板"
           % (sm["zt_count"], sm["zb_count"], sm["zb_rate"], sm["dt_count"], sm["max_board"]))
+
+    # ---- flow.json ----
+    flow = fetch_fund_flow(trade_date)
+    with open(os.path.join(DATA, "flow.json"), "w", encoding="utf-8") as f:
+        json.dump(flow, f, ensure_ascii=False)
+    print("资金流: 概念流入 %d / 行业流入 %d" % (len(flow["concept_in"]), len(flow["industry_in"])))
+
+    # ---- global.json ----
+    global_map = fetch_global_map(trade_date)
+    with open(os.path.join(DATA, "global.json"), "w", encoding="utf-8") as f:
+        json.dump(global_map, f, ensure_ascii=False)
+    print("外盘映射: %d 项" % len(global_map["items"]))
 
     zt_codes = {s["code"] for l in limitup["ladders"] for s in l["stocks"]}
 
@@ -557,6 +674,8 @@ def main():
         "emotion": limitup["summary"],
         "top_ladders": [l for l in limitup["ladders"] if l["board"] >= 2][:4],
         "zt_themes": limitup["themes"][:8],
+        "top_inflow": flow["concept_in"][:6],
+        "global_items": global_map["items"][:6],
         "themes": themes,
         "sustained": sustained[:6],
         "sustained_dates": last5,
