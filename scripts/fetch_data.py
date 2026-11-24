@@ -385,6 +385,63 @@ def fetch_fund_flow(trade_date):
     return res
 
 
+# ---------- 东财龙虎榜 ----------
+def fetch_lhb(trade_date):
+    """拉取最近一个已公布龙虎榜交易日的净买卖明细（收盘后约 17:30 发布，未发布则自动取前一交易日）"""
+    from datetime import timedelta
+    d0 = datetime.strptime(trade_date, "%Y-%m-%d")
+    since = (d0 - timedelta(days=7)).strftime("%Y-%m-%d")
+    params = urllib.parse.urlencode({
+        "sortColumns": "TRADE_DATE,BILLBOARD_NET_AMT",
+        "sortTypes": "-1,-1",
+        "pageSize": 120,
+        "pageNumber": 1,
+        "reportName": "RPT_DAILYBILLBOARD_DETAILSNEW",
+        "columns": "SECURITY_CODE,SECURITY_NAME_ABBR,TRADE_DATE,CLOSE_PRICE,CHANGE_RATE,BILLBOARD_NET_AMT,BILLBOARD_BUY_AMT,BILLBOARD_SELL_AMT,TURNOVERRATE,EXPLANATION",
+        "filter": f"(TRADE_DATE>='{since}')",
+    })
+    url = "https://datacenter-web.eastmoney.com/api/data/v1/get?" + params
+    out = {"data_date": trade_date, "net_buy": [], "net_sell": [], "generated_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
+    try:
+        raw = http(url, headers={"User-Agent": UA, "Referer": "https://data.eastmoney.com/"},
+                   timeout=15, tries=2).decode("utf-8", "ignore")
+        rows = (json.loads(raw).get("result") or {}).get("data") or []
+        if not rows:
+            return out
+        latest_dt = str(rows[0].get("TRADE_DATE") or "")[:10]
+        out["data_date"] = latest_dt or trade_date
+        by_code = {}
+        for x in rows:
+            if str(x.get("TRADE_DATE") or "")[:10] != latest_dt:
+                continue
+            code = str(x.get("SECURITY_CODE") or "")
+            if not code or code in by_code:
+                continue
+            def fnum(k):
+                v = x.get(k)
+                try:
+                    return float(v) if v is not None else None
+                except Exception:
+                    return None
+            by_code[code] = {
+                "code": code,
+                "name": str(x.get("SECURITY_NAME_ABBR") or ""),
+                "close": fnum("CLOSE_PRICE"),
+                "pct": round(fnum("CHANGE_RATE"), 2) if fnum("CHANGE_RATE") is not None else None,
+                "net_amt": fnum("BILLBOARD_NET_AMT") or 0.0,
+                "buy_amt": fnum("BILLBOARD_BUY_AMT") or 0.0,
+                "sell_amt": fnum("BILLBOARD_SELL_AMT") or 0.0,
+                "hs": round(fnum("TURNOVERRATE"), 2) if fnum("TURNOVERRATE") is not None else None,
+                "reason": str(x.get("EXPLANATION") or ""),
+            }
+        all_rows = list(by_code.values())
+        out["net_buy"] = sorted([r for r in all_rows if r["net_amt"] > 0], key=lambda r: -r["net_amt"])[:30]
+        out["net_sell"] = sorted([r for r in all_rows if r["net_amt"] < 0], key=lambda r: r["net_amt"])[:30]
+    except Exception as e:
+        print("龙虎榜拉取失败:", repr(e)[:100])
+    return out
+
+
 # ---------- 隔夜外盘 → A 股映射 ----------
 GLOBAL_MAP = [
     ("usSOXX", "费城半导体ETF", "半导体/芯片", [("gn_bdt", "半导体"), ("gn_gcxp", "国产芯片"), ("gn_hwhs", "华为海思")]),
@@ -582,6 +639,12 @@ def main():
     with open(os.path.join(DATA, "flow.json"), "w", encoding="utf-8") as f:
         json.dump(flow, f, ensure_ascii=False)
     print("资金流: 概念流入 %d / 行业流入 %d" % (len(flow["concept_in"]), len(flow["industry_in"])))
+
+    # ---- lhb.json ----
+    lhb = fetch_lhb(trade_date)
+    with open(os.path.join(DATA, "lhb.json"), "w", encoding="utf-8") as f:
+        json.dump(lhb, f, ensure_ascii=False)
+    print("龙虎榜(%s): 净买 %d / 净卖 %d" % (lhb["data_date"], len(lhb["net_buy"]), len(lhb["net_sell"])))
 
     # ---- global.json ----
     global_map = fetch_global_map(trade_date)
