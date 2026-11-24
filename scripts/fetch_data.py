@@ -474,13 +474,47 @@ def fetch_news(limit=100):
 
 
 def match_news(name, news):
-    key = name.replace("概念", "").replace("板块", "").replace("指数", "").strip()
+    key = name.replace("概念", "").replace("板块", "").replace("指数", "").replace("Ⅱ", "").replace("Ⅲ", "").strip()
     if len(key) < 2:
         return None
     for n in news:
         if key in n["title"]:
             return n
     return None
+
+
+def update_emotion_history(trade_date, limitup):
+    """把当日情绪指标增量写入 site/data/emotion_history.json（保留近 30 个交易日）"""
+    p = os.path.join(DATA, "emotion_history.json")
+    rows = []
+    if os.path.isfile(p):
+        try:
+            with open(p, encoding="utf-8") as f:
+                rows = (json.load(f).get("rows") or [])
+        except Exception:
+            rows = []
+    by_date = {r["date"]: r for r in rows if r.get("date")}
+    sm = limitup.get("summary") or {}
+    ladders = limitup.get("ladders") or []
+    top_st = ladders[0]["stocks"][0] if (ladders and ladders[0].get("stocks")) else None
+    by_date[trade_date] = {
+        "date": trade_date,
+        "zt_count": sm.get("zt_count", 0),
+        "dt_count": sm.get("dt_count", 0),
+        "zb_count": sm.get("zb_count", 0),
+        "zb_rate": sm.get("zb_rate", 0.0),
+        "max_board": sm.get("max_board", 0),
+        "lianban_count": sm.get("lianban_count", 0),
+        "total_seal": sm.get("total_seal", 0),
+        "top_stock": top_st["name"] if top_st else "",
+        "top_code": top_st["code"] if top_st else "",
+        "top_hybk": top_st["hybk"] if top_st else "",
+    }
+    out_rows = [by_date[d] for d in sorted(by_date.keys())[-30:]]
+    with open(p, "w", encoding="utf-8") as f:
+        json.dump({"rows": out_rows, "generated_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S")},
+                  f, ensure_ascii=False)
+    return out_rows
 
 
 def load_daily(date):
@@ -527,13 +561,21 @@ def main():
         return 1
     print("题材数:", len(sectors))
 
-    # ---- limitup.json ----
+    # ---- limitup.json + 快讯归因 + 情绪历史 ----
+    news = fetch_news(limit=200)
     limitup = fetch_limitup(trade_date)
+    for g in limitup.get("themes") or []:
+        g["catalyst"] = match_news(g["name"], news)
+    for tier in limitup.get("ladders") or []:
+        for s in tier.get("stocks") or []:
+            s["catalyst"] = match_news(s["name"], news) or match_news(s["hybk"], news)
+    limitup["news_feed"] = news[:20]
     with open(os.path.join(DATA, "limitup.json"), "w", encoding="utf-8") as f:
         json.dump(limitup, f, ensure_ascii=False)
     sm = limitup["summary"]
-    print("涨停池: 涨停 %d / 炸板 %d (%.1f%%) / 跌停 %d / 最高 %d 板"
-          % (sm["zt_count"], sm["zb_count"], sm["zb_rate"], sm["dt_count"], sm["max_board"]))
+    emo_hist = update_emotion_history(trade_date, limitup)
+    print("涨停池: 涨停 %d / 炸板 %d (%.1f%%) / 跌停 %d / 最高 %d 板 | 情绪历史 %d 天"
+          % (sm["zt_count"], sm["zb_count"], sm["zb_rate"], sm["dt_count"], sm["max_board"], len(emo_hist)))
 
     # ---- flow.json ----
     flow = fetch_fund_flow(trade_date)
@@ -631,7 +673,6 @@ def main():
     # ---- home.json（盘后驾驶舱） ----
     cand = [r for r in data_rows if r["name"] not in SKIP and r["pct"] is not None]
     cand.sort(key=lambda r: r["pct"], reverse=True)
-    news = fetch_news()
     themes = []
     for s in cand[:8]:
         code = s["code"]
