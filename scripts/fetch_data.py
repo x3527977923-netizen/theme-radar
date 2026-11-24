@@ -514,6 +514,57 @@ def fetch_fund_flow(trade_date):
     return res
 
 
+def _tag_seat(name):
+    if "机构专用" in name:
+        return "机构"
+    if "深股通" in name or "沪股通" in name:
+        return "北向"
+    if "拉萨" in name or "东方财富证券" in name:
+        return "拉萨"
+    if "量化" in name or "开源证券西安西大街" in name or "中国国际金融上海分公司" in name or "瑞银证券" in name:
+        return "量化"
+    return "游资"
+
+
+def _short_seat(name):
+    s = str(name or "")
+    for rm in ("有限责任公司", "股份有限公司", "证券营业部", "营业部"):
+        s = s.replace(rm, "")
+    return s.strip()
+
+
+def _fetch_lhb_seats(trade_date, code):
+    params = urllib.parse.urlencode({
+        "sortColumns": "BUY",
+        "sortTypes": "-1",
+        "pageSize": 5,
+        "pageNumber": 1,
+        "reportName": "RPT_BILLBOARD_DAILYDETAILSBUY",
+        "columns": "OPERATEDEPT_NAME,BUY,SELL,NET",
+        "filter": f'(TRADE_DATE=\'{trade_date}\')(SECURITY_CODE="{code}")',
+    })
+    url = "https://datacenter-web.eastmoney.com/api/data/v1/get?" + params
+    try:
+        raw = http(url, headers={"User-Agent": UA, "Referer": "https://data.eastmoney.com/"},
+                   timeout=12, tries=2).decode("utf-8", "ignore")
+        rows = (json.loads(raw).get("result") or {}).get("data") or []
+        seats = []
+        for r in rows[:5]:
+            nm = str(r.get("OPERATEDEPT_NAME") or "")
+            if not nm:
+                continue
+            seats.append({
+                "name": _short_seat(nm),
+                "tag": _tag_seat(nm),
+                "buy": float(r.get("BUY") or 0),
+                "sell": float(r.get("SELL") or 0),
+                "net": float(r.get("NET") or 0),
+            })
+        return seats
+    except Exception:
+        return []
+
+
 # ---------- 东财龙虎榜 ----------
 def fetch_lhb(trade_date):
     """拉取最近一个已公布龙虎榜交易日的净买卖明细（收盘后约 17:30 发布，未发布则自动取前一交易日）"""
@@ -566,6 +617,18 @@ def fetch_lhb(trade_date):
         all_rows = list(by_code.values())
         out["net_buy"] = sorted([r for r in all_rows if r["net_amt"] > 0], key=lambda r: -r["net_amt"])[:30]
         out["net_sell"] = sorted([r for r in all_rows if r["net_amt"] < 0], key=lambda r: r["net_amt"])[:30]
+
+        # 并发拉取净买前 15 / 净卖前 10 的买五席位明细
+        from concurrent.futures import ThreadPoolExecutor
+        targets = out["net_buy"][:15] + out["net_sell"][:10]
+        if targets:
+            with ThreadPoolExecutor(max_workers=6) as ex:
+                futs = {ex.submit(_fetch_lhb_seats, out["data_date"], r["code"]): r for r in targets}
+                for fut, row in futs.items():
+                    seats = fut.result()
+                    if seats:
+                        row["seats"] = seats
+                        row["seat_tags"] = list(dict.fromkeys(s["tag"] for s in seats))
     except Exception as e:
         print("龙虎榜拉取失败:", repr(e)[:100])
     return out
