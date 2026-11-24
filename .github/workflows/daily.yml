@@ -22,7 +22,7 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  refresh-and-deploy:
+  build:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -45,6 +45,7 @@ jobs:
             echo "no data change"
           else
             git commit -m "data: $(TZ=Asia/Shanghai date '+%F %H:%M')"
+            git pull --rebase origin main || true
             git push
           fi
 
@@ -53,6 +54,13 @@ jobs:
         with:
           path: site
 
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
