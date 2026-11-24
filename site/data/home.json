@@ -18,7 +18,9 @@
   "max_board": 4,
   "lianban_count": 30,
   "total_seal": 4187927641.0,
-  "zt_amount": 30189752944.0
+  "zt_amount": 30189752944.0,
+  "prev_zt_avg_pct": 4.2,
+  "overall_promote_rate": 20.5
  },
  "top_ladders": [
   {
@@ -361,11 +363,7 @@
      "zbc": 9,
      "stat": "2天2板",
      "ltsz": 11580492000.000002,
-     "catalyst": {
-      "title": "【横店影视：股票交易异常波动 无应披露未披露重大事项】横店影视公告称，公司股票于2026年11月23日、11月24日连续2个交易日收盘价格涨幅偏离值累计超过20%，属于股票交易异常波动情形。经自查并向控股股东、实控人核实，不存在应披露而未披",
-      "time": "2026-11-24 17:31:13",
-      "url": "https://finance.sina.cn/7x24/2026-11-24/detail-inizvqtf2251861.d.html"
-     }
+     "catalyst": null
     },
     {
      "code": "002242",
@@ -1629,5 +1627,5 @@
   "2026-11-24"
  ],
  "note": null,
- "generated_at": "2026-11-24 17:34:18"
+ "generated_at": "2026-11-24 18:27:10"
 }

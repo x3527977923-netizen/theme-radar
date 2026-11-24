@@ -82,7 +82,7 @@ DESC = {
 }
 
 
-def http(url, headers=None, timeout=20, tries=3):
+def http(url, headers=None, timeout=20, tries=4):
     last = None
     for i in range(tries):
         try:
@@ -93,6 +93,55 @@ def http(url, headers=None, timeout=20, tries=3):
             last = e
             time.sleep(1.2 * (i + 1))
     raise last
+
+
+def write_json_safe(path, payload, is_valid=True, indent=None):
+    """仅当新数据有效时才原子写入；接口抽风返回空数据时保留旧文件"""
+    if (not is_valid) and os.path.isfile(path):
+        print(f"WARN: {os.path.basename(path)} 新数据无效/为空，保留已有文件")
+        return False
+    tmp = path + ".tmp"
+    with open(tmp, "w", encoding="utf-8") as f:
+        json.dump(payload, f, ensure_ascii=False, indent=indent)
+    os.replace(tmp, path)
+    return True
+
+
+def _qt_prefix(code):
+    c = str(code).strip()
+    if c.startswith(("6", "9", "5")):
+        return "sh" + c
+    if c.startswith(("4", "8")):
+        return "bj" + c
+    return "sz" + c
+
+
+def fetch_tencent_quotes(codes):
+    """批量拉取腾讯最新价与涨跌幅（用于计算昨日涨停今日溢价/核按钮）"""
+    res = {}
+    uniq = list(dict.fromkeys(str(c).strip() for c in codes if c))
+    for i in range(0, len(uniq), 60):
+        chunk = uniq[i:i + 60]
+        syms = ",".join(_qt_prefix(c) for c in chunk)
+        try:
+            txt = gbk_text("https://qt.gtimg.cn/q=" + syms,
+                           {"User-Agent": UA, "Referer": "https://gu.qq.com/"})
+            for line in txt.split(";"):
+                if "=" not in line:
+                    continue
+                f = line.split("=", 1)[1].strip().strip('"').split("~")
+                if len(f) < 33:
+                    continue
+                code = str(f[2]).strip()
+                try:
+                    price = float(f[3])
+                    pct = round(float(f[32]), 2)
+                except Exception:
+                    continue
+                res[code] = {"price": price, "pct": pct, "name": f[1]}
+        except Exception as e:
+            print("批量行情拉取失败:", repr(e)[:100])
+    return res
 
 
 def gbk_text(url, headers=None):
@@ -128,7 +177,7 @@ def _em_pool(endpoint, sort_expr, ymd):
     return (d.get("data") or {}).get("pool") or []
 
 
-def fetch_limitup(trade_date):
+def fetch_limitup(trade_date, prev_date=None):
     ymd = trade_date.replace("-", "")
     zt_raw, zb_raw, dt_raw = [], [], []
     try:
@@ -239,6 +288,82 @@ def fetch_limitup(trade_date):
     total_seal = sum(x["fund"] for x in zt_list)
     zt_amount = sum(x["amount"] for x in zt_list)
 
+    # 晋级率 & 昨日涨停今日溢价 / 核按钮清单
+    promotion = {
+        "prev_date": prev_date,
+        "tiers": [],
+        "prev_total": 0,
+        "promoted_total": 0,
+        "overall_rate": None,
+        "prev_zt_avg_pct": None,
+        "prev_zt_up_rate": None,
+    }
+    nuke_pool = []
+    if prev_date and zt_list:
+        try:
+            prev_raw = _em_pool("getTopicZTPool", "lbc:desc", prev_date.replace("-", ""))
+        except Exception as e:
+            print("昨日涨停池拉取失败:", repr(e)[:100])
+            prev_raw = []
+        if prev_raw:
+            today_zt_codes = {x["code"] for x in zt_list}
+            prev_by_tier = {1: [], 2: [], 3: []}  # 3 代表 3板及以上
+            prev_items = []
+            for x in prev_raw:
+                c = str(x.get("c") or "")
+                lbc = int(x.get("lbc") or 1)
+                if not c:
+                    continue
+                bucket = 1 if lbc == 1 else (2 if lbc == 2 else 3)
+                prev_by_tier[bucket].append(c)
+                prev_items.append({
+                    "code": c,
+                    "name": x.get("n") or "",
+                    "prev_lbc": lbc,
+                    "hybk": (x.get("hybk") or "其他").strip() or "其他",
+                })
+            tiers_out = []
+            for b, lbl in [(1, "1进2"), (2, "2进3"), (3, "3进4+")]:
+                arr = prev_by_tier[b]
+                if not arr:
+                    continue
+                prom = sum(1 for c in arr if c in today_zt_codes)
+                tiers_out.append({
+                    "label": lbl,
+                    "prev_count": len(arr),
+                    "promoted": prom,
+                    "rate": round(prom / len(arr) * 100, 1),
+                })
+            prev_total = len(prev_items)
+            prom_total = sum(1 for x in prev_items if x["code"] in today_zt_codes)
+            promotion["tiers"] = tiers_out
+            promotion["prev_total"] = prev_total
+            promotion["promoted_total"] = prom_total
+            promotion["overall_rate"] = round(prom_total / prev_total * 100, 1) if prev_total else None
+
+            # 拉取昨日涨停股今日收盘涨跌幅（计算溢价率 & 核按钮）
+            qt = fetch_tencent_quotes([x["code"] for x in prev_items])
+            pcts = []
+            for it in prev_items:
+                q = qt.get(it["code"])
+                if not q:
+                    continue
+                pcts.append(q["pct"])
+                if q["pct"] <= -4.0:
+                    nuke_pool.append({
+                        "code": it["code"],
+                        "name": it["name"] or q["name"],
+                        "prev_lbc": it["prev_lbc"],
+                        "hybk": it["hybk"],
+                        "price": q["price"],
+                        "pct": q["pct"],
+                    })
+            if pcts:
+                promotion["prev_zt_avg_pct"] = round(sum(pcts) / len(pcts), 2)
+                promotion["prev_zt_up_rate"] = round(sum(1 for v in pcts if v > 0) / len(pcts) * 100, 1)
+            nuke_pool.sort(key=lambda x: (x["pct"], -x["prev_lbc"]))
+            nuke_pool = nuke_pool[:25]
+
     return {
         "data_date": trade_date,
         "summary": {
@@ -250,7 +375,11 @@ def fetch_limitup(trade_date):
             "lianban_count": lianban_cnt,
             "total_seal": total_seal,
             "zt_amount": zt_amount,
+            "prev_zt_avg_pct": promotion["prev_zt_avg_pct"],
+            "overall_promote_rate": promotion["overall_rate"],
         },
+        "promotion": promotion,
+        "nuke_pool": nuke_pool,
         "ladders": ladders,
         "themes": theme_groups,
         "zb_pool": zb_list,
@@ -602,7 +731,11 @@ def calc_hot(pct, amount, zt_hits=0):
 
 def main():
     os.makedirs(DAILY, exist_ok=True)
-    trade_date = market_trade_date()
+    try:
+        trade_date = market_trade_date()
+    except Exception as e:
+        print("WARN: 交易日接口暂时不可达，保留已有数据并跳过本次运行:", repr(e)[:120])
+        return 0
     print("交易日:", trade_date)
 
     force = "--force" in sys.argv
@@ -612,56 +745,64 @@ def main():
             print("当天数据已存在（%d 个题材），跳过。需要重抓请加 --force" % len(existing.get("rows") or {}))
             return 0
 
-    sectors = fetch_sectors()
+    try:
+        sectors = fetch_sectors()
+    except Exception as e:
+        print("WARN: 新浪题材接口暂时不可达，保留已有数据并跳过本次运行:", repr(e)[:120])
+        return 0
     if not sectors:
-        print("ERROR: 题材数据为空，放弃本次生成（保留上次数据）")
-        return 1
+        print("WARN: 题材数据为空，放弃本次生成（保留上次数据）")
+        return 0
     print("题材数:", len(sectors))
+
+    dates_pre = recent_dates(30)
+    prev_date = next((d for d in dates_pre if d < trade_date), None)
 
     # ---- limitup.json + 快讯归因 + 情绪历史 ----
     news = fetch_news(limit=200)
-    limitup = fetch_limitup(trade_date)
+    limitup = fetch_limitup(trade_date, prev_date=prev_date)
     for g in limitup.get("themes") or []:
         g["catalyst"] = match_news(g["name"], news)
     for tier in limitup.get("ladders") or []:
         for s in tier.get("stocks") or []:
             s["catalyst"] = match_news(s["name"], news) or match_news(s["hybk"], news)
     limitup["news_feed"] = news[:20]
-    with open(os.path.join(DATA, "limitup.json"), "w", encoding="utf-8") as f:
-        json.dump(limitup, f, ensure_ascii=False)
+    lu_ok = (limitup["summary"]["zt_count"] > 0 or limitup["summary"]["zb_count"] > 0)
+    write_json_safe(os.path.join(DATA, "limitup.json"), limitup, is_valid=lu_ok)
     sm = limitup["summary"]
-    emo_hist = update_emotion_history(trade_date, limitup)
-    print("涨停池: 涨停 %d / 炸板 %d (%.1f%%) / 跌停 %d / 最高 %d 板 | 情绪历史 %d 天"
-          % (sm["zt_count"], sm["zb_count"], sm["zb_rate"], sm["dt_count"], sm["max_board"], len(emo_hist)))
+    emo_hist = update_emotion_history(trade_date, limitup) if lu_ok else []
+    print("涨停池: 涨停 %d / 炸板 %d (%.1f%%) / 跌停 %d / 最高 %d 板 / 昨涨停溢价 %s%% | 情绪历史 %d 天"
+          % (sm["zt_count"], sm["zb_count"], sm["zb_rate"], sm["dt_count"], sm["max_board"],
+             sm.get("prev_zt_avg_pct"), len(emo_hist)))
 
     # ---- flow.json ----
     flow = fetch_fund_flow(trade_date)
-    with open(os.path.join(DATA, "flow.json"), "w", encoding="utf-8") as f:
-        json.dump(flow, f, ensure_ascii=False)
+    flow_ok = bool(flow["concept_in"] or flow["industry_in"])
+    write_json_safe(os.path.join(DATA, "flow.json"), flow, is_valid=flow_ok)
     print("资金流: 概念流入 %d / 行业流入 %d" % (len(flow["concept_in"]), len(flow["industry_in"])))
 
     # ---- lhb.json ----
     lhb = fetch_lhb(trade_date)
-    with open(os.path.join(DATA, "lhb.json"), "w", encoding="utf-8") as f:
-        json.dump(lhb, f, ensure_ascii=False)
+    write_json_safe(os.path.join(DATA, "lhb.json"), lhb, is_valid=bool(lhb["net_buy"] or lhb["net_sell"]))
     print("龙虎榜(%s): 净买 %d / 净卖 %d" % (lhb["data_date"], len(lhb["net_buy"]), len(lhb["net_sell"])))
 
     # ---- global.json ----
     global_map = fetch_global_map(trade_date)
-    with open(os.path.join(DATA, "global.json"), "w", encoding="utf-8") as f:
-        json.dump(global_map, f, ensure_ascii=False)
+    write_json_safe(os.path.join(DATA, "global.json"), global_map, is_valid=bool(global_map["items"]))
     print("外盘映射: %d 项" % len(global_map["items"]))
 
     zt_codes = {s["code"] for l in limitup["ladders"] for s in l["stocks"]}
 
     # 当日快照落盘
-    with open(os.path.join(DAILY, trade_date + ".json"), "w", encoding="utf-8") as f:
-        json.dump({"date": trade_date,
-                   "rows": {s["code"]: {"name": s["name"], "pct": s["pct"],
-                                        "count": s["count"], "lead_name": s["lead_name"],
-                                        "lead_pct": s["lead_pct"], "amount": s["amount"]}
-                            for s in sectors}},
-                  f, ensure_ascii=False)
+    write_json_safe(
+        os.path.join(DAILY, trade_date + ".json"),
+        {"date": trade_date,
+         "rows": {s["code"]: {"name": s["name"], "pct": s["pct"],
+                              "count": s["count"], "lead_name": s["lead_name"],
+                              "lead_pct": s["lead_pct"], "amount": s["amount"]}
+                  for s in sectors}},
+        is_valid=len(sectors) >= 100,
+    )
 
     dates = recent_dates(30)
     prev_date = next((d for d in dates if d < trade_date), None)
@@ -712,8 +853,7 @@ def main():
     except Exception as e:
         print("指数失败:", repr(e)[:100])
         idx = []
-    with open(os.path.join(DATA, "indices.json"), "w", encoding="utf-8") as f:
-        json.dump({"data": idx}, f, ensure_ascii=False)
+    write_json_safe(os.path.join(DATA, "indices.json"), {"data": idx}, is_valid=bool(idx))
 
     # ---- history.json ----
     hist_dates = sorted(recent_dates(30))
