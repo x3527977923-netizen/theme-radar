@@ -15,7 +15,12 @@ import urllib.error
 import urllib.request
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
-TOKEN_FILE = r"D:\work\stocklab-deploy\.ghtoken"
+_TOKEN_CANDIDATES = [
+    os.path.join(ROOT, ".ghtoken"),
+    os.path.join(os.path.dirname(ROOT), "stocklab-deploy", ".ghtoken"),
+    r"D:\work\stocklab-deploy\.ghtoken",
+]
+TOKEN_FILE = next((p for p in _TOKEN_CANDIDATES if os.path.exists(p)), _TOKEN_CANDIDATES[0])
 OWNER, REPO = "x3527977923-netizen", "theme-radar"
 API = "https://api.github.com"
 

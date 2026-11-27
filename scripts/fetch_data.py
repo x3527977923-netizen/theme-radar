@@ -109,10 +109,10 @@ def write_json_safe(path, payload, is_valid=True, indent=None):
 
 def _qt_prefix(code):
     c = str(code).strip()
-    if c.startswith(("6", "9", "5")):
-        return "sh" + c
-    if c.startswith(("4", "8")):
+    if c.startswith(("4", "8", "92")):
         return "bj" + c
+    if c.startswith(("6", "5", "900")):
+        return "sh" + c
     return "sz" + c
 
 
@@ -167,14 +167,32 @@ def market_trade_date():
     return datetime.now().strftime("%Y-%m-%d")
 
 
-# ---------- 东财涨停/炸板/跌停池 ----------
+# ---------- 东财涨停/炸板/跌停池（自动翻页拉全量，防止百股涨停日截断） ----------
 def _em_pool(endpoint, sort_expr, ymd):
-    url = (f"https://push2ex.eastmoney.com/{endpoint}"
-           f"?ut=7eea3edcaed734bea9cbfc24409ed989&dpt=wz.ztzt"
-           f"&Pageindex=0&pagesize=200&sort={sort_expr}&date={ymd}")
-    raw = http(url, headers=HDR_EM, timeout=15, tries=2).decode("utf-8", "ignore")
-    d = json.loads(raw)
-    return (d.get("data") or {}).get("pool") or []
+    out = []
+    seen = set()
+    page_size = 200
+    for page_idx in range(10):
+        url = (f"https://push2ex.eastmoney.com/{endpoint}"
+               f"?ut=7eea3edcaed734bea9cbfc24409ed989&dpt=wz.ztzt"
+               f"&Pageindex={page_idx}&pagesize={page_size}&sort={sort_expr}&date={ymd}")
+        raw = http(url, headers=HDR_EM, timeout=15, tries=2).decode("utf-8", "ignore")
+        d = json.loads(raw)
+        data = d.get("data") or {}
+        pool = data.get("pool") or []
+        if not pool:
+            break
+        for item in pool:
+            code = str(item.get("c") or "")
+            if code and code in seen:
+                continue
+            if code:
+                seen.add(code)
+            out.append(item)
+        tc = int(data.get("tc") or 0)
+        if len(pool) < page_size or (tc and len(out) >= tc):
+            break
+    return out
 
 
 def fetch_limitup(trade_date, prev_date=None):
@@ -452,7 +470,7 @@ def sector_stocks(code, num=20):
         if pct is None:
             continue
         out.append({
-            "code": str(x.get("code", "")).replace("sh", "").replace("sz", ""),
+            "code": re.sub(r"^[a-z]{2}", "", str(x.get("code", ""))),
             "name": x.get("name"),
             "price": x.get("trade"),
             "pctChg": pct,
@@ -533,13 +551,14 @@ def _short_seat(name):
     return s.strip()
 
 
-def _fetch_lhb_seats(trade_date, code):
+def _fetch_lhb_seats(trade_date, code, side="BUY"):
+    is_sell = (side == "SELL")
     params = urllib.parse.urlencode({
-        "sortColumns": "BUY",
+        "sortColumns": "SELL" if is_sell else "BUY",
         "sortTypes": "-1",
         "pageSize": 5,
         "pageNumber": 1,
-        "reportName": "RPT_BILLBOARD_DAILYDETAILSBUY",
+        "reportName": "RPT_BILLBOARD_DAILYDETAILSSELL" if is_sell else "RPT_BILLBOARD_DAILYDETAILSBUY",
         "columns": "OPERATEDEPT_NAME,BUY,SELL,NET",
         "filter": f'(TRADE_DATE=\'{trade_date}\')(SECURITY_CODE="{code}")',
     })
@@ -549,10 +568,12 @@ def _fetch_lhb_seats(trade_date, code):
                    timeout=12, tries=2).decode("utf-8", "ignore")
         rows = (json.loads(raw).get("result") or {}).get("data") or []
         seats = []
-        for r in rows[:5]:
+        seen_names = set()
+        for r in rows:
             nm = str(r.get("OPERATEDEPT_NAME") or "")
-            if not nm:
+            if not nm or nm in seen_names:
                 continue
+            seen_names.add(nm)
             seats.append({
                 "name": _short_seat(nm),
                 "tag": _tag_seat(nm),
@@ -560,6 +581,8 @@ def _fetch_lhb_seats(trade_date, code):
                 "sell": float(r.get("SELL") or 0),
                 "net": float(r.get("NET") or 0),
             })
+            if len(seats) >= 5:
+                break
         return seats
     except Exception:
         return []
@@ -574,7 +597,7 @@ def fetch_lhb(trade_date):
     params = urllib.parse.urlencode({
         "sortColumns": "TRADE_DATE,BILLBOARD_NET_AMT",
         "sortTypes": "-1,-1",
-        "pageSize": 120,
+        "pageSize": 500,
         "pageNumber": 1,
         "reportName": "RPT_DAILYBILLBOARD_DETAILSNEW",
         "columns": "SECURITY_CODE,SECURITY_NAME_ABBR,TRADE_DATE,CLOSE_PRICE,CHANGE_RATE,BILLBOARD_NET_AMT,BILLBOARD_BUY_AMT,BILLBOARD_SELL_AMT,TURNOVERRATE,EXPLANATION",
@@ -618,17 +641,33 @@ def fetch_lhb(trade_date):
         out["net_buy"] = sorted([r for r in all_rows if r["net_amt"] > 0], key=lambda r: -r["net_amt"])[:30]
         out["net_sell"] = sorted([r for r in all_rows if r["net_amt"] < 0], key=lambda r: r["net_amt"])[:30]
 
-        # 并发拉取净买前 15 / 净卖前 10 的买五席位明细
+        # 并发拉取净买前 15 / 净卖前 15 的买卖前五席位明细
         from concurrent.futures import ThreadPoolExecutor
-        targets = out["net_buy"][:15] + out["net_sell"][:10]
-        if targets:
-            with ThreadPoolExecutor(max_workers=6) as ex:
-                futs = {ex.submit(_fetch_lhb_seats, out["data_date"], r["code"]): r for r in targets}
-                for fut, row in futs.items():
+        buy_targets = out["net_buy"][:15]
+        sell_targets = out["net_sell"][:15]
+        if buy_targets or sell_targets:
+            with ThreadPoolExecutor(max_workers=8) as ex:
+                futs = []
+                for r in buy_targets:
+                    futs.append((ex.submit(_fetch_lhb_seats, out["data_date"], r["code"], "BUY"), r, "buy"))
+                    futs.append((ex.submit(_fetch_lhb_seats, out["data_date"], r["code"], "SELL"), r, "sell"))
+                for r in sell_targets:
+                    futs.append((ex.submit(_fetch_lhb_seats, out["data_date"], r["code"], "SELL"), r, "sell"))
+                    futs.append((ex.submit(_fetch_lhb_seats, out["data_date"], r["code"], "BUY"), r, "buy"))
+                for fut, row, kind in futs:
                     seats = fut.result()
                     if seats:
-                        row["seats"] = seats
-                        row["seat_tags"] = list(dict.fromkeys(s["tag"] for s in seats))
+                        row[f"{kind}_seats"] = seats
+                for r in buy_targets:
+                    primary = r.get("buy_seats") or []
+                    if primary:
+                        r["seats"] = primary
+                        r["seat_tags"] = list(dict.fromkeys(s["tag"] for s in primary))
+                for r in sell_targets:
+                    primary = r.get("sell_seats") or []
+                    if primary:
+                        r["seats"] = primary
+                        r["seat_tags"] = list(dict.fromkeys(s["tag"] for s in primary))
     except Exception as e:
         print("龙虎榜拉取失败:", repr(e)[:100])
     return out
@@ -805,7 +844,25 @@ def main():
     existing = load_daily(trade_date)
     if (not force) and existing and len((existing.get("rows") or {})) >= 150:
         if all(os.path.isfile(os.path.join(DATA, fn)) for fn in ("limitup.json", "flow.json", "global.json", "home.json")):
-            print("当天数据已存在（%d 个题材），跳过。需要重抓请加 --force" % len(existing.get("rows") or {}))
+            # 检查龙虎榜是否已更新到当日（龙虎榜常在 16:30~17:30 才出，晚于 15:10 首轮抓取）
+            lhb_path = os.path.join(DATA, "lhb.json")
+            lhb_cur_date = None
+            if os.path.isfile(lhb_path):
+                try:
+                    with open(lhb_path, encoding="utf-8") as f:
+                        lhb_cur_date = json.load(f).get("data_date")
+                except Exception:
+                    lhb_cur_date = None
+            if lhb_cur_date != trade_date:
+                lhb = fetch_lhb(trade_date)
+                if lhb.get("data_date") == trade_date and (lhb["net_buy"] or lhb["net_sell"]):
+                    write_json_safe(lhb_path, lhb, is_valid=True)
+                    print("已单独补齐当日龙虎榜(%s): 净买 %d / 净卖 %d" % (
+                        lhb["data_date"], len(lhb["net_buy"]), len(lhb["net_sell"])))
+                else:
+                    print("当日行情已存在，龙虎榜(%s)尚未公布，跳过。" % trade_date)
+                return 0
+            print("当天数据已完整存在（%d 个题材 + 当日龙虎榜），跳过。需要重抓请加 --force" % len(existing.get("rows") or {}))
             return 0
 
     try:

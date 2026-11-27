@@ -61,7 +61,7 @@
   </div>
   <div class="key">
     <span class="k">ADMIN KEY</span>
-    <input id="key" style="width:160px" placeholder="admin888" />
+    <input id="key" type="password" style="width:160px" placeholder="输入管理密钥" />
     <button onclick="saveKey()">保存</button>
     <a href="/" style="color:var(--dim);font-size:12px">← 回前台</a>
   </div>
@@ -129,7 +129,7 @@
 
 <script>
 const $ = (id) => document.getElementById(id)
-const key = () => localStorage.getItem('sl_admin_key') || 'admin888'
+const key = () => localStorage.getItem('sl_admin_key') || ''
 function saveKey(){ localStorage.setItem('sl_admin_key', $('key').value.trim()); $('key').value = key(); loadAll() }
 function hdr(extra={}){ return { 'Content-Type': 'application/json', 'X-Admin-Key': key(), ...extra } }
 function out(id, text, ok=false){ const el=$(id); el.textContent = text; el.className = 'out' + (ok?' ok':'') }

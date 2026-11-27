@@ -7,8 +7,14 @@ import time
 import urllib.error
 import urllib.request
 
-ROOT = r"C:\Users\LEGION\Documents\deepseek-harness\default-workspace\stocklab\static"
-TOKEN = open(os.path.join(r"D:\work\stocklab-deploy", ".ghtoken"), encoding="utf-8").read().strip()
+ROOT = os.path.dirname(os.path.abspath(__file__))
+_TOKEN_CANDIDATES = [
+    os.path.join(ROOT, ".ghtoken"),
+    os.path.join(os.path.dirname(ROOT), "stocklab-deploy", ".ghtoken"),
+    r"D:\work\stocklab-deploy\.ghtoken",
+]
+TOKEN_FILE = next((p for p in _TOKEN_CANDIDATES if os.path.exists(p)), _TOKEN_CANDIDATES[0])
+TOKEN = open(TOKEN_FILE, encoding="utf-8").read().strip()
 OWNER, REPO = "x3527977923-netizen", "theme-radar"
 API = "https://api.github.com"
 SKIP_NAMES = {".ghtoken", "publish.py", ".runid"}
